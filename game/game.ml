@@ -2,7 +2,7 @@ open Definitions
 open Constants
 open Util
 
-type team = {score:score; units:unit_data list ref; buildings:building_data list ref;
+type team = {color: color; score:score; units:unit_data list ref; buildings:building_data list ref;
 						 age:age; food:food_count; wood:wood_count; upgrades:upgrades}
 
 type game = {team_red: team; team_blue:team; resources: resource_data list; timer: int ref; m: Mutex.t}
