@@ -1,21 +1,21 @@
 open Definitions
 open Constants
 open Util
+open State
 
-type team = {color: color; score:score; units:unit_data list ref; buildings:building_data list ref;
-						 age:age; food:food_count; wood:wood_count; upgrades:upgrades}
-
-type game = {team_red: team; team_blue:team; resources: resource_data list; timer: int ref; m: Mutex.t}
-
+type game = state * Mutex.t
+               
 let initGame () : game = 
-
-	let woods = List.map (fun x -> (x,Wood,cINITIAL_WOOD)) cWOOD_TILES
-	and foods = List.map (fun x -> (x,Food,cINITIAL_FOOD)) cFOOD_TILES
-	and t = ref (int_of_float cTIME_LIMIT)
-	and red = {score=0;units=ref [];buildings= ref [];age=DarkAge;food=0;wood=0;upgrades=(false,false,false)}
-	and blue = {score=0;units=ref [];buildings=ref [];age=DarkAge;food=0;wood=0;upgrades=(false,false,false)} in
-	Netgraphics.send_update (InitGraphics);
-	{team_red = red; team_blue = blue; resources = woods@foods; timer = t; m = Mutex.create()}
+   let woods = List.map (fun x -> (x,Wood,cINITIAL_WOOD)) cWOOD_TILES
+   and foods = List.map (fun x -> (x,Food,cINITIAL_FOOD)) cFOOD_TILES
+   and t = ref (int_of_float cTIME_LIMIT)
+   and red = {color= Red;score=0;units=ref [];buildings= ref [];
+      age=DarkAge;food=0;wood=0;upgrades=(false,false,false)}
+   and blue = {color= Blue;score=0;units=ref [];buildings=ref [];
+      age=DarkAge;food=0;wood=0;upgrades=(false,false,false)} in
+   Netgraphics.send_update (InitGraphics);
+   {team_red = red; team_blue = blue; resources = woods@foods;
+      timer = t; m = Mutex.create()}
 
 let initUnitsAndBuildings g : unit =
 	Netgraphics.send_update (InitFood cFOOD_TILES);
@@ -26,8 +26,6 @@ let initUnitsAndBuildings g : unit =
 	()
 
 let startGame g : unit = 
-	
-
 	()
 
 let handleAction g act c : command = 
@@ -42,9 +40,9 @@ let handleAction g act c : command =
 		| QueueCollect unit_id -> failwith "not implemented"
 		| QueueMove(unit_id,pos) -> failwith "not implemented"
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
-		| QueueAttack (unit_id, attackable_object) -> failwith "not implemented"
-		| QueueBuild (unit_id, building_type) -> failwith "not implemented"
-		| QueueSpawn (building_id, unit_type) -> failwith "not implemented"
+	| QueueAttack (unit_id, attackable_object) -> failwith "not implemented"
+	| QueueBuild (unit_id, building_type) -> failwith "not implemented"
+	| QueueSpawn (building_id, unit_type) -> failwith "not implemented"
 		| ClearAttack id -> failwith "not implemented" 
 		| ClearMove id -> failwith "not implemented"
 		| Upgrade upgrade_type -> failwith "not implemented"
@@ -53,15 +51,15 @@ let handleAction g act c : command =
   Result res
 
 let handleStatus g status : command = 
-  let m = g.m in 
+  let (s,m) = g in
   Mutex.lock m;
   let data =
     match status with
-			| TeamStatus c -> failwith "not implemented"
-			| UnitStatus id -> failwith "not implemented"
-			| BuildingStatus id -> failwith "not implemented"
-			| GameStatus -> failwith "not implemented"
-			| ResourceStatus -> failwith "not implemented"
+	| TeamStatus c -> failwith "not implemented"
+	| UnitStatus id -> failwith "not implemented"
+	| BuildingStatus id -> failwith "not implemented"
+	| GameStatus -> failwith "not implemented"
+	| ResourceStatus -> failwith "not implemented"
     in
   Mutex.unlock m;
   Data data
