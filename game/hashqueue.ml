@@ -14,3 +14,5 @@ type actqueue=
    SpawnQueue of building_id * unit_type
 
 type hashqueue= (id, actqueues) Hashtbl.t
+
+(* Getter and setter methods *)
