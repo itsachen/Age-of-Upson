@@ -7,25 +7,50 @@ type team = {color: color; score:score; units:unit_data list ref;
    upgrades:upgrades}
 
 type state= {team_red: team; team_blue:team; 
-   resources: resource_data list; timer: int ref}
-
-let getBuildings (g: game) (c: color) : building_data list=
-   let result= g.team_red.buildings in
-   Mutex.lock g.m;
-   if g.team_red.color = c then (Mutex.unlock g.m; !result)
-   else (Mutex.unlock g.m; !(g.team_blue.buildings))
+   resources: resource_data list; timer: float ref}
 
 let getTeamStatus (s: state) (c: color): team_data=
-   failwith "Not implemented yet!"
+   match c with
+   | Red -> 
+      (let r= s.team_red in 
+         (r.score,r.units,r.buildings,r.age,r.food,r.wood,r.upgrades))
+   | Blue ->
+      (let b= s.team_blue in 
+         (b.score,b.units,b.buildings,b.age,b.food,b.wood,b.upgrades))
+  
 
+(* @# WHAT HAPPENS IF UNIT_ID OR BUILDING_ID IS NOT IS NOT THERE *)
 let getUnitStatus (s: state) (i: unit_id): unit_data=
-   failwith "Not implemented yet!"
+   let foo= List.fold_left
+      (fun a c ->
+         match c with
+         | (id,ty,h,p) -> if id = i then c else a) 
+      (-1,Villager,-1,(-1.0,-1.0)) s.team_red.units in
+   if foo = (-1,Villager,-1,(-1.0,-1.0)) then
+      (List.fold_left 
+         (fun a c ->
+            match c with
+            | (id,ty,h,p) -> if id = i then c else a) 
+      (-1,Villager,-1,(-1.0,-1.0)) s.team_blue.units)
+   else foo
 
 let getBuildingStatus (s: state) (i: building_id): building_data=
-   failwith "Not implemented yet!"
+   let foo= List.fold_left
+      (fun a c ->
+         match c with
+         | (id,ty,h,ti) -> if id = i then c else a) 
+      (-1,Barracks,-1,(-1,-1)) s.team_red.buildings in
+   if foo = (-1,Barracks,-1,(-1,-1)) then
+      (List.fold_left 
+         (fun a c -> 
+            match c with
+            | (id,ty,h,ti) -> if id = i then c else a) 
+      (-1,Barracks,-1,(-1,-1)) s.team_blue.buildings)
+   else foo
 
 let getGameStatus (s: state) : game_data=
-   failwith "Not implemented yet!"
+   (s.team_red,s.team_blue.s.timer,s.timer)
 
-let getResourceStatus (s: state) : game_data=
-   failwith "Not implemented yet!"
+(* Double check? *)
+let getResourceStatus (s: state) : resource_data list=
+   s.resources
