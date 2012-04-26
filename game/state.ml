@@ -1,13 +1,16 @@
 open Definitions
 open Constants
 open Util
+open Hashqueue
 
 type team = {color: color; score:score; units:unit_data list ref; 
    buildings:building_data list ref; age:age; food:food_count; wood:wood_count; 
-   upgrades:upgrades; uqueue:queue; bqueue:queue}
+   upgrades:upgrades}
 
 type state= {team_red: team; team_blue:team; 
-   resources: resource_data list; timer: float ref}
+   resources: resource_data list; timer: float ref; 
+   movq: hashqueue ref; gatherq: hashqueue ref; attackq: hashqueue ref; 
+   buildq: hashqueue ref; spawnq: hashqueue ref}
 
 let getTeamStatus (s: state) (c: color): team_data=
    match c with
