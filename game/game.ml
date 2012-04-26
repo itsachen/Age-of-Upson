@@ -40,12 +40,12 @@ let handleAction g act c : command =
 		| QueueCollect unit_id -> failwith "not implemented"
 		| QueueMove(unit_id,pos) -> failwith "not implemented"
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
-	| QueueAttack (unit_id, attackable_object) -> failwith "not implemented"
-	| QueueBuild (unit_id, building_type) -> failwith "not implemented"
-	| QueueSpawn (building_id, unit_type) -> failwith "not implemented"
-		| ClearAttack id -> failwith "not implemented" 
-		| ClearMove id -> failwith "not implemented"
-		| Upgrade upgrade_type -> failwith "not implemented"
+    | QueueAttack (unit_id, attackable_object) -> failwith "not implemented"
+    | QueueBuild (unit_id, building_type) -> failwith "not implemented"
+    | QueueSpawn (building_id, unit_type) -> failwith "not implemented"
+    | ClearAttack id -> failwith "not implemented" 
+    | ClearMove id -> failwith "not implemented"
+    | Upgrade upgrade_type -> failwith "not implemented"
 		in
   Mutex.unlock m;
   Result res
