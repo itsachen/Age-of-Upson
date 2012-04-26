@@ -57,3 +57,10 @@ let getGameStatus (s: state) : game_data=
 (* Double check? *)
 let getResourceStatus (s: state) : resource_data list=
    s.resources
+	
+	
+let setTeamStatus (s:state) (t:team_data) (c:color):unit =
+	let (s, units, buildings, age, food, wood, upgrades) = t in
+	match c with
+		| Red -> s.team_red = {}
+	
