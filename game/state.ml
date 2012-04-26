@@ -3,9 +3,9 @@ open Constants
 open Util
 open Hashqueue
 
-type team = {color: color; score:score; units:unit_data list ref; 
-   buildings:building_data list ref; age:age; food:food_count; wood:wood_count; 
-   upgrades:upgrades}
+type team = {color: color; score:score ref; units:unit_data list ref; 
+   buildings:building_data list ref; age:age ref; food:food_count ref; wood:wood_count ref; 
+   upgrades:upgrades ref}
 
 type state= {team_red: team; team_blue:team; 
    resources: resource_data list; timer: float ref; 
@@ -59,8 +59,62 @@ let getResourceStatus (s: state) : resource_data list=
    s.resources
 	
 	
-let setTeamStatus (s:state) (t:team_data) (c:color):unit =
-	let (s, units, buildings, age, food, wood, upgrades) = t in
+let setTeamScore (s:state) (c:color) (sc: score):unit =
 	match c with
-		| Red -> s.team_red = {}
+		| Red -> s.team_red.score := sc; ()
+		| Blue -> s.team_blue.score := sc; ()
+
+let setTeamUnits (s:state) (c:color) (u: unit_data list):unit =
+	match c with
+		| Red -> s.team_red.units := u; ()
+		| Blue -> s.team_blue.units := u; ()
+
+let setTeamBuildings (s:state) (c:color) (b: building_data list):unit =
+	match c with
+		| Red -> s.team_red.buildings := b; ()
+		| Blue -> s.team_blue.buildings := b; ()
+
+let setTeamAge (s:state) (c:color) (a: age):unit =
+	match c with
+		| Red -> s.team_red.age := a; ()
+		| Blue -> s.team_blue.age := a; ()
+
+let setTeamFood (s:state) (c:color) (f: food_count):unit =
+	match c with
+		| Red -> s.team_red.food := f; ()
+		| Blue -> s.team_blue.food := f; ()
+
+let setTeamWood (s:state) (c:color) (w: wood_count):unit =
+	match c with
+		| Red -> s.team_red.wood := w; ()
+		| Blue -> s.team_blue.wood := w; ()
+
+let setTeamUpgrades (s:state) (c:color) (u: upgrades):unit =
+	match c with
+		| Red -> s.team_red.upgrades := u; ()
+		| Blue -> s.team_blue.upgrades := u; ()
+
+let setResources (s:state) (r: resource_data list):unit =
+	s.resources := r; ()
+	
+let setTimer (s:state) (t: float):unit =
+	s.timer := t; ()
+	
+let setMovq (s:state) (q: hashqueue):unit =
+	s.movq := q; ()
+	
+let setGatherq (s:state) (q: hashqueue):unit =
+	s.gatherq := q; ()
+
+let setAttackq (s:state) (q: hashqueue):unit =
+	s.attackq := q; ()
+	
+let setBuildq (s:state) (q: hashqueue):unit =
+	s.buildq := q; ()
+	
+let setSpawnq (s:state) (q: hashqueue):unit =
+	s.spawnq := q; ()
+	
+	
+			
 	
