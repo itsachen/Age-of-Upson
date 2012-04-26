@@ -41,8 +41,8 @@ let handleAction g act c : command =
      * colors are not equal. Else, match against all the possible actions.
      *)
     match act with
-		| QueueCollect unit_id -> failwith "not implemented"
-		| QueueMove(unit_id,pos) -> failwith "not implemented"
+    | QueueCollect unit_id -> failwith "not implemented"
+    | QueueMove(unit_id,pos) -> failwith "not implemented"
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
     | QueueAttack (unit_id, attackable_object) -> failwith "not implemented"
     | QueueBuild (unit_id, building_type) -> failwith "not implemented"
