@@ -29,7 +29,7 @@ let startGame g : unit =
 	()
 
 let handleAction g act c : command = 
-  let m = g.m in 
+  let (s,m)= g in 
   Mutex.lock m;
   let res =
     (* will involve having to get this unit_id's team color,
