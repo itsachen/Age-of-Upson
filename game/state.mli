@@ -1,6 +1,11 @@
 open Definitions
 open Constants
 open Util
+open Hashqueue
+
+type state
+
+val createState: unit -> state 
 
 val getTeamStatus: state -> color -> team_data
 
@@ -10,11 +15,16 @@ val getBuildingStatus: state -> building_id -> building_data
 
 val getGameStatus: state -> game_data
 
-val getResourceStatus: state -> game_data
+val getResourceStatus: state -> resource_data list
 
 val setTeamScore: state -> color -> score -> unit 
 
-val setTeamUnits: state -> color -> unit_data list -> unit 
+(*val setTeamUnits: state -> color -> unit_data list -> unit  *)
+val addTeamUnit: state -> color -> unit_data -> unit
+
+val removeTeamUnit: state -> color -> unit_id -> unit
+
+val updateTeamUnit: state -> color -> unit_data -> unit
 
 val setTeamBuildings: state -> color -> building_data list -> unit 
 

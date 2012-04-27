@@ -6,26 +6,51 @@ open State
 type game = state * Mutex.t
                
 let initGame () : game = 
-   let woods = List.map (fun x -> (x,Wood,cINITIAL_WOOD)) cWOOD_TILES
-   and foods = List.map (fun x -> (x,Food,cINITIAL_FOOD)) cFOOD_TILES
-   and t = ref (int_of_float cTIME_LIMIT)
-   and red = {color= Red;score=0;units=ref [];buildings= ref [];
-      age=DarkAge;food=0;wood=0;upgrades=(false,false,false)}
-   and blue = {color= Blue;score=0;units=ref [];buildings=ref [];
-      age=DarkAge;food=0;wood=0;upgrades=(false,false,false)} in
-   Netgraphics.send_update (InitGraphics);
-   {team_red = red; team_blue = blue; resources = woods@foods;
-      timer = t; m = Mutex.create()}
-
-let initUnitsAndBuildings g : unit =
+	let s = createState ()
+	and m = Mutex.create ()
+  and woods = List.map (fun x -> (x,Wood,cINITIAL_WOOD)) cWOOD_TILES
+  and foods = List.map (fun x -> (x,Food,cINITIAL_FOOD)) cFOOD_TILES in
+	setResources s (woods@foods);
+  Netgraphics.send_update (InitGraphics);
 	Netgraphics.send_update (InitFood cFOOD_TILES);
 	Netgraphics.send_update (InitWood cWOOD_TILES);
-	g.team_red.units := [];
-	g.team_blue.units := [];
+  (s, m)
 
-	()
+let initUnitsAndBuildings g : unit =
+	let (s,m) = g 
+	and (rx,ry) = (100.,100.)
+	and (bx,by) = (400.,400.) in
+	setTeamBuildings s Red [(next_available_id (), TownCenter,
+		cTOWNCENTER_HEALTH, tile_of_pos (rx,ry) ) ];
+	let (_,_,rb,_,_,_,_) = getTeamStatus s Red in
+  List.iter
+		(fun (id,t,h,p) ->
+			Netgraphics.add_update (AddBuilding (id,t,p,h,Red));() ) rb; 
+	setTeamBuildings s Blue [(next_available_id (), TownCenter, 
+		cTOWNCENTER_HEALTH, tile_of_pos (bx,by)) ];
+	let (_,_,bb,_,_,_,_) = getTeamStatus s Blue in
+  List.iter
+		(fun (id,t,h,p) ->
+			Netgraphics.add_update (AddBuilding (id,t,p,h,Blue));() ) bb;	 
+	for i = 1 to cSTARTING_VILLAGER_COUNT do
+		addTeamUnit s Red (next_available_id (), Villager, 
+			cVILLAGER_HEALTH, (rx+.5.*.float_of_int i,ry));
+		addTeamUnit s Blue (next_available_id (), Villager, 
+			cVILLAGER_HEALTH, (bx+.5.*.float_of_int i,by));
+	done ;
+	let (_,ru,_,_,_,_,_) = getTeamStatus s Red in
+  List.iter
+		(fun (id,t,h,p) ->
+			Netgraphics.add_update (AddUnit (id,t,p,h,Red));() ) ru;
+	let (_,bu,_,_,_,_,_) = getTeamStatus s Blue in
+  List.iter
+		(fun (id,t,h,p) ->
+			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));() ) bu
+	
 
 let startGame g : unit = 
+	let (s,m) = g in
+	setTimer s 0. ; 
 	()
 
 let handleAction g act c : command = 
@@ -68,10 +93,9 @@ let check_for_game_over s curr_time : game_result option =
 	failwith "not implemented"
  
 let handleTime g new_time : game_result option = 
-  let m = g.m 
-	and s = g.timer in 
+  let (s,m) = g in 
   Mutex.lock m;
-  let res = check_for_game_over !s new_time in
+  let res = check_for_game_over s new_time in
   (match res with
    | Some c -> ()
    | None -> 

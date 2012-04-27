@@ -1,7 +1,6 @@
 open Definitions
 
-type game = {team_red: team; team_blue:team;
-   resources: resource_data list; timer: int ref; m: Mutex.t}
+type game
 
 (* Initialize a new game *)
 val initGame: unit -> game
