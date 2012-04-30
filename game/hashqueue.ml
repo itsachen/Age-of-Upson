@@ -23,7 +23,7 @@ let createHashq (n: int) : hashqueue =
 (*c is a color type already*)
 
 (* q is a ref *)
-let queueCollect uid q c copt tyopt s: result=
+let queueCollect uid q c copt tyopt: result=
    (* Check if uid is of same color*)
    match copt with
    | Some(cresult) -> 
@@ -40,7 +40,7 @@ let queueCollect uid q c copt tyopt s: result=
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let queueMove movtup q c copt s: result=
+let queueMove movtup q c copt: result=
    (* Check if uid is of same color *)
    match copt with
    | Some(cresult) ->
@@ -52,7 +52,7 @@ let queueMove movtup q c copt s: result=
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let queueAttack atttup q c copt tyopt s: result=
+let queueAttack atttup q c copt tyopt: result=
    (* Check if uid is of same color*)
    match copt with
    | Some(cresult) -> 
@@ -69,7 +69,7 @@ let queueAttack atttup q c copt tyopt s: result=
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let queueBuild buildtup q c copt tyopt s: result=
+let queueBuild buildtup q c copt tyopt: result=
    (* Check if uid is of same color*)
    match copt with
    | Some(cresult) -> 
@@ -86,7 +86,7 @@ let queueBuild buildtup q c copt tyopt s: result=
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let queueSpawn spawntup q c copt isbuild s: result=
+let queueSpawn spawntup q c copt isbuild: result=
    (* Check if uid is of same color*)
    match copt with
    | Some(cresult) -> 
@@ -100,7 +100,7 @@ let queueSpawn spawntup q c copt isbuild s: result=
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let clearAttack uid q c copt tyopt s: result=
+let clearAttack uid q c copt tyopt: result=
    (* Check if uid is of same color*)
    match copt with
    | Some(cresult) -> 
@@ -116,7 +116,7 @@ let clearAttack uid q c copt tyopt s: result=
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let clearMove uid q c copt s: result=
+let clearMove uid q c copt: result=
    (* Check if uid is of same color *)
    match copt with
    | Some(cresult) ->
