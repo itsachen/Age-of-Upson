@@ -80,14 +80,34 @@ let handleAction g act c : command =
      * colors are not equal. Else, match against all the possible actions.
      *)
     match act with
-    | QueueCollect unit_id -> queueCollect unit_id !(s.gatherq) c 
-    | QueueMove(unit_id,pos) -> failwith "not implemented"
+    | QueueCollect unit_id -> 
+       queueCollect unit_id !(s.gatherq) c (getTeam unit_id s)
+          (getType unit_id s)
+
+    | QueueMove(unit_id,pos) -> 
+       queueMove (unit_id,pos) !(s.moveq) c (getTeam unit_id s)
+
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
-    | QueueAttack (unit_id, attackable_object) -> failwith "not implemented"
-    | QueueBuild (unit_id, building_type) -> failwith "not implemented"
-    | QueueSpawn (building_id, unit_type) -> failwith "not implemented"
-    | ClearAttack id -> failwith "not implemented" 
-    | ClearMove id -> failwith "not implemented"
+
+    | QueueAttack (unit_id, attackable_object) ->
+     queueAttack (unit_id, attackable_object) !(s.attackq) c (getTeam unit_id s)
+          (getType unit_id s)
+
+    | QueueBuild (unit_id, building_type) ->
+       queueBuild (unit_id, building_type) !(s.buildq) c (getTeam unit_id s)
+          (getType unit_id s)
+
+    | QueueSpawn (building_id, unit_type) ->
+       queueSpawn (building_id, unit_type) !(s.spawnq) c 
+       (getTeam building_id s) (getIsBuilding building_id s)
+
+    | ClearAttack id ->
+       clearAttack id !(s.attackq) c (getTeam id s)
+          (getType unit_id s)
+
+    | ClearMove id ->
+       clearMove id !(s.moveq) c (getTeam id s)
+
     | Upgrade upgrade_type -> failwith "not implemented"
 		in
   Mutex.unlock m;
@@ -108,25 +128,25 @@ let handleStatus g status : command =
   Data data
 
 let check_for_game_over s curr_time : game_result option =
-	let (rs,ru,rb,_,rf,rw,_) = getTeamStatus s Red 
-	and (bs,bu,bb,_,bf,bw,_) = getTeamStatus s Blue
-	and timer = getTimer s in
-	let redLose = (List.length ru = 0) ||
-	 (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) rb = [])
-	and blueLose = (List.length bu = 0) ||
-	 (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) bb = []) in
-	match (redLose,blueLose) with
-		| (true,false) -> Some (Winner(Blue))
-		| (false,true) -> Some (Winner(Red))
-		| (true,true) -> Some Tie
-		| _ -> 	
-		if curr_time-. timer >= cTIME_LIMIT then
-			let redScore = rf+rw
-			and blueScore = bf+bw in
-			if redScore > blueScore then Some (Winner(Red))
-			else if blueScore > redScore then Some (Winner(Blue))
-			else Some Tie
-		else None
+   let (rs,ru,rb,_,rf,rw,_) = getTeamStatus s Red 
+   and (bs,bu,bb,_,bf,bw,_) = getTeamStatus s Blue
+   and timer = getTimer s in
+   let redLose = (List.length ru = 0) ||
+   (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) rb = [])
+   and blueLose = (List.length bu = 0) ||
+   (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) bb = []) in
+   match (redLose,blueLose) with
+	| (true,false) -> Some (Winner(Blue))
+	| (false,true) -> Some (Winner(Red))
+	| (true,true) -> Some Tie
+	| _ -> 	
+	if curr_time-. timer >= cTIME_LIMIT then
+		let redScore = rf+rw
+		and blueScore = bf+bw in
+		if redScore > blueScore then Some (Winner(Red))
+		else if blueScore > redScore then Some (Winner(Blue))
+		else Some Tie
+	else None
 		
  
 let handleTime g new_time : game_result option = 
