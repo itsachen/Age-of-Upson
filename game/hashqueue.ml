@@ -1,7 +1,6 @@
 open Definitions
 open Constants
 open Util
-open Unit
 
 type id= 
    UnitId of unit_id |
@@ -21,52 +20,83 @@ let createHashq (n: int) : hashqueue =
 
 (* Getter and setter methods *)
 
+(*c is a color type already*)
+
 (* q is a ref *)
-let queueCollect uid q c s: result=
+let queueCollect uid q c copt tyopt s: result=
    (* Check if uid is of same color*)
-   let col= getTeam uid s in
-   match col with
+   match copt with
    | Some(cresult) -> 
       (if c = cresult then 
-         (let ty= getType uid s in
-          match ty with
+         (match tyopt with
           | Some(tyresult) -> 
-             if ty = Villager then (
+             if tyresult = Villager then (
                 let oldq= Hashtbl.find q uid in
-                Queue.add uid oldq in
-                Hashtbl.replace q uid oldq in
+                Queue.add uid oldq;
+                Hashtbl.replace q uid oldq;
                 Success)
              else Success
           | None -> Failed (* uid does not exist *) )
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let queueMove movtup q c s: result=
+let queueMove movtup q c copt s: result=
    (* Check if uid is of same color *)
-   let col= getTeam uid s in
-   match col with
+   match copt with
    | Some(cresult) ->
       (if c = cresult then
          (let oldq= Hashtbl.find q uid in
-          Queue.add movtup oldq in
-          Hashtbl.replace q uid oldq in
+          Queue.add movtup oldq;
+          Hashtbl.replace q uid oldq;
           Success)
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let queueAttack atttup q c s: result=
+let queueAttack atttup q c copt tyopt s: result=
    (* Check if uid is of same color*)
-   let col= getTeam uid s in
-   match col with
+   match copt with
    | Some(cresult) -> 
       (if c = cresult then 
-         (let ty= getType uid s in
-          match ty with
+         (match tyopt with
           | Some(tyresult) -> 
-             if ty = Villager then (
-                let oldq= Hashtbl.find q uid in
-                Queue.add uid oldq in
-                Hashtbl.replace q uid oldq in
+             if tyresult <> Villager then (
+                let oldq= Hashtbl.find q (fst atttup) in
+                Queue.add atttup oldq;
+                Hashtbl.replace q (fst atttup) oldq;
+                Success)
+             else Success
+          | None -> Failed (* uid does not exist *) )
+       else Failed (* unit belongs to other team *))
+   | None -> Failed (* uid does not exist *)
+
+let queueBuild buildtup q c copt tyopt s: result=
+   (* Check if uid is of same color*)
+   match copt with
+   | Some(cresult) -> 
+      (if c = cresult then 
+         (match tyopt with
+          | Some(tyresult) -> 
+             if tyresult = Villager then (
+                let oldq= Hashtbl.find q (fst buildtup) in
+                Queue.add buildtup oldq;
+                Hashtbl.replace q (fst buildtup) oldq;
+                Success)
+             else Success
+          | None -> Failed (* uid does not exist *) )
+       else Failed (* unit belongs to other team *))
+   | None -> Failed (* uid does not exist *)
+
+let queueSpawn spawntup q c copt tyopt s: result=
+   (* Check if uid is of same color*)
+   match copt with
+   | Some(cresult) -> 
+      (if c = cresult then 
+         (match tyopt with
+          | Some(tyresult) -> 
+             if tyresult = Villager then (
+                let oldq= Hashtbl.find q (fst buildtup) in
+                Queue.add buildtup oldq;
+                Hashtbl.replace q (fst buildtup) oldq;
                 Success)
              else Success
           | None -> Failed (* uid does not exist *) )
