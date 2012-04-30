@@ -107,7 +107,25 @@ let handleStatus g status : command =
   Data data
 
 let check_for_game_over s curr_time : game_result option =
-	failwith "not implemented"
+	let (rs,ru,rb,_,rf,rw,_) = getTeamStatus s Red 
+	and (bs,bu,bb,_,bf,bw,_) = getTeamStatus s Blue
+	and timer = getTimer s in
+	let redLose = (List.length ru = 0) ||
+	 (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) rb = [])
+	and blueLose = (List.length bu = 0) ||
+	 (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) bb = []) in
+	match (redLose,blueLose) with
+		| (true,false) -> Some (Winner(Blue))
+		| (false,true) -> Some (Winner(Red))
+		| (true,true) -> Some Tie
+		| _ -> 	
+		if curr_time-. timer >= cTIME_LIMIT then
+			let redScore = rf+rw
+			and blueScore = bf+bw in
+			if redScore > blueScore then Some (Winner(Red))
+			else if blueScore > redScore then Some (Winner(Blue))
+			else Some Tie
+		else None
 		
  
 let handleTime g new_time : game_result option = 
@@ -117,6 +135,12 @@ let handleTime g new_time : game_result option =
   (match res with
    | Some c -> ()
    | None -> 
+		(*handleAttack s;*)
+		(*removeDead s;*)
+		(* updateScore s;*)
+		(* removeResource s;*)
+		(* handleMove s;*)
+		(* moveUnits s  *)
        failwith "not implemented");
   Mutex.unlock m;
   res
