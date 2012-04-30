@@ -277,3 +277,11 @@ gui/images
 gui/lib
 shared
 team
+game
+gui
+gui/audio
+gui/bin
+gui/images
+gui/lib
+shared
+team
