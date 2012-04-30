@@ -184,14 +184,14 @@ let getType uid s: unit_type option=
    else let (_,ty,_,_)= foo in Some(ty)
 
 let getIsBuilding uid s: bool=
-   let foo= List.filter (fun (id,ty,h,til) -> uid = id) s.team_red.buildings in
+   let foo= List.filter 
+      (fun (id,ty,h,til) -> uid = id) !(s.team_red.buildings) in
    match foo with
    | [] -> 
       (let foo2= List.filter
-      (fun (id,ty,h,til) -> uid = id) s.team_blue.buildings in
+      (fun (id,ty,h,til) -> uid = id) !(s.team_blue.buildings) in
       if foo2 = [] then false else true)
    | _ -> true
-   
 	
 	
 			
