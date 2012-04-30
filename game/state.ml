@@ -102,7 +102,6 @@ let updateTeamUnit (s:state) (c:color) (u: unit_data):unit =
 	let (id,_,_,_) = u in
 	removeTeamUnit s c id;
 	addTeamUnit s c u
-
 	
 let setTeamBuildings (s:state) (c:color) (b: building_data list):unit =
 	match c with
