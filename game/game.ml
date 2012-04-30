@@ -20,13 +20,14 @@ let initGame () : game =
 let rec randPos (c:color): float*float =
 	Random.self_init ();
 	match c with
-		| Red -> let x = Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)
-		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
-						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
-						 else randPos c
-		| Blue -> let x = (Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)) +. cBOARD_WIDTH/.2.
-		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
-						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+	| Red -> let x = Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)
+	         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
+   if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+   else randPos c
+| Blue -> 
+let x = (Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)) +. cBOARD_WIDTH/.2.
+	        and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
+   if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
 						 else randPos c
 
 let initUnitsAndBuildings g : unit =
@@ -39,13 +40,13 @@ let initUnitsAndBuildings g : unit =
 	let (_,_,rb,_,_,_,_) = getTeamStatus s Red in
   List.iter
 		(fun (id,t,h,p) ->
-			Netgraphics.add_update (AddBuilding (id,t,p,h,Red));() ) rb; 
+		Netgraphics.add_update (AddBuilding (id,t,p,h,Red));() ) rb; 
 	setTeamBuildings s Blue [(next_available_id (), TownCenter, 
 		cTOWNCENTER_HEALTH, tile_of_pos (bx,by)) ];
 	let (_,_,bb,_,_,_,_) = getTeamStatus s Blue in
   List.iter
 		(fun (id,t,h,p) ->
-			Netgraphics.add_update (AddBuilding (id,t,p,h,Blue));() ) bb;	 
+	Netgraphics.add_update (AddBuilding (id,t,p,h,Blue));() ) bb;	 
 	for i = 1 to cSTARTING_VILLAGER_COUNT do
 		addTeamUnit s Red (next_available_id (), Villager, 
 			cVILLAGER_HEALTH, (rx+.5.*.float_of_int i,ry));
@@ -59,7 +60,7 @@ let initUnitsAndBuildings g : unit =
 	let (_,bu,_,_,_,_,_) = getTeamStatus s Blue in
   List.iter
 		(fun (id,t,h,p) ->
-			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));() ) bu;
+		Netgraphics.add_update (AddUnit (id,t,p,h,Blue));() ) bu;
 	Mutex.unlock m
 	
 
@@ -79,7 +80,7 @@ let handleAction g act c : command =
      * colors are not equal. Else, match against all the possible actions.
      *)
     match act with
-    | QueueCollect unit_id -> failwith "not implemented"
+    | QueueCollect unit_id -> queueCollect unit_id !(s.gatherq) c 
     | QueueMove(unit_id,pos) -> failwith "not implemented"
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
     | QueueAttack (unit_id, attackable_object) -> failwith "not implemented"
