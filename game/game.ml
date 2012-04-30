@@ -16,10 +16,24 @@ let initGame () : game =
 	Netgraphics.send_update (InitWood cWOOD_TILES);
   (s, m)
 
+(*generate random and valid initial positions *)	
+let rec randPos (c:color): float*float =
+	Random.self_init ();
+	match c with
+		| Red -> let x = Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)
+		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
+						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+						 else randPos c
+		| Blue -> let x = (Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)) +. cBOARD_WIDTH/.2.
+		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
+						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+						 else randPos c
+
 let initUnitsAndBuildings g : unit =
 	let (s,m) = g 
-	and (rx,ry) = (100.,100.)
-	and (bx,by) = (400.,400.) in
+	and (rx,ry) = randPos Red
+	and (bx,by) = randPos Blue in
+	Mutex.lock m;
 	setTeamBuildings s Red [(next_available_id (), TownCenter,
 		cTOWNCENTER_HEALTH, tile_of_pos (rx,ry) ) ];
 	let (_,_,rb,_,_,_,_) = getTeamStatus s Red in
@@ -45,13 +59,16 @@ let initUnitsAndBuildings g : unit =
 	let (_,bu,_,_,_,_,_) = getTeamStatus s Blue in
   List.iter
 		(fun (id,t,h,p) ->
-			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));() ) bu
+			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));() ) bu;
+	Mutex.unlock m
 	
 
 let startGame g : unit = 
 	let (s,m) = g in
-	setTimer s 0. ; 
-	()
+	Mutex.lock m;
+	setTimer s (Unix.gettimeofday ()) ; 
+	Mutex.unlock m
+
 
 let handleAction g act c : command = 
   let (s,m) = g in 
@@ -80,17 +97,18 @@ let handleStatus g status : command =
   Mutex.lock m;
   let data =
     match status with
-	| TeamStatus c -> failwith "not implemented"
-	| UnitStatus id -> failwith "not implemented"
-	| BuildingStatus id -> failwith "not implemented"
-	| GameStatus -> failwith "not implemented"
-	| ResourceStatus -> failwith "not implemented"
+	| TeamStatus c -> TeamData (getTeamStatus s c)
+	| UnitStatus id -> UnitData (getUnitStatus s id)
+	| BuildingStatus id -> BuildingData (getBuildingStatus s id)
+	| GameStatus -> GameData (getGameStatus s)
+	| ResourceStatus -> ResourceData (getResourceStatus s)
     in
   Mutex.unlock m;
   Data data
 
 let check_for_game_over s curr_time : game_result option =
 	failwith "not implemented"
+		
  
 let handleTime g new_time : game_result option = 
   let (s,m) = g in 
