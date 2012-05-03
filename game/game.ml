@@ -57,11 +57,13 @@ let initUnitsAndBuildings g : unit =
   List.iter
 		(fun (id,t,h,p) ->
 			Netgraphics.add_update (AddUnit (id,t,p,h,Red));
+			Hashtbl.add !(s.movq) id (MoveQueue(Queue.create ()));
 			updateCDTable s (id,0.); () ) ru;
 	let (_,bu,_,_,_,_,_) = getTeamStatus s Blue in
   List.iter
 		(fun (id,t,h,p) ->
 			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));
+			Hashtbl.add !(s.movq) id (MoveQueue(Queue.create ()));
 			updateCDTable s (id,0.); () ) bu;
 	Mutex.unlock m
 	
