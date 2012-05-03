@@ -35,23 +35,28 @@ let getResourceQueue tcloc=
 (* Collect thread function *)
 let rec collect crazytuple=
    match crazytuple with
-   (uid,h,rq,m) ->
-   print_int (h);print_string (" ");
+   (uid,h,tcloc,m) ->
+   print_int (uid); print_string(": ");print_int (h);print_string ("\n");
+
+   if h <= 0 then 
+    (print_int (uid); print_string(": ");print_endline ("Ran out of resources");
+      let rq= getResourceQueue tcloc in
+      if Queue.is_empty (!rq) then (print_endline ("No more resources");())
+      else let (t,rty,hnew) = Queue.pop !rq in
+      let mov= QueueMove(uid,(position_of_tile(t))) in
+      let _= send_action mov 0 in
+      Thread.delay 1.0;
+      collect (uid,hnew,tcloc,m))
+
+   else(
    let action= QueueCollect uid in
    let res= send_action action 0 in
    match res with 
-   | Success -> collect (uid,(h-cRESOURCE_COLLECTED),rq,m)
+   | Success -> collect (uid,(h-cRESOURCE_COLLECTED),tcloc,m)
    | Failed  -> 
-      (if h <= 0 then 
-          (Mutex.lock m;
-          print_endline ("Ran out of resources");
-          if Queue.is_empty (!rq) then ()
-          else let (t,rty,hnew) = Queue.pop !rq in
-          let mov= QueueMove(uid,(position_of_tile(t))) in
-          let _= send_action mov 0 in
-          Mutex.unlock;
-          collect (uid,hnew,rq,m))
-       else Thread.delay 0.5; collect (uid,h,rq,m))
+print_int (uid); print_string(": ");print_endline ("Walking");
+         Thread.delay 1.0;
+collect (uid,h,tcloc,m)) (* Walking *)
 
 let count = ref 0 
 
@@ -89,9 +94,9 @@ let bot c =
    let res3= send_action mov3 0 in
 
    let cm = Mutex.create () in
-   let _ = Thread.create collect (u1,h1,resourceq,cm) in
-   let _ = Thread.create collect (u2,h2,resourceq,cm) in
-   let _ = Thread.create collect (u3,h3,resourceq,cm) in
+   let _ = Thread.create collect (u1,h1,tcloc,cm) in
+   let _ = Thread.create collect (u2,h2,tcloc,cm) in
+   let _ = Thread.create collect (u3,h3,tcloc,cm) in
 
    while true do
    
