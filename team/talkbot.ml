@@ -22,12 +22,25 @@ let count = ref 0
 (*THIS IS THE ONLY METHOD YOU NEED TO COMPLETE FOR THE BOT*)
 (*Make sure to use helper funcitons*)
 let bot c =
+
+   (* Collect thread *)
+   let rec collect uid=
+      let action= QueueCollect uid in
+      let res= send_action action 0 in
+      match res with 
+      | Success -> print_endline ("Talk Success!")
+      | Failed  -> 
+      (print_endline ("Can't collect right now");
+       Thread.delay 0.5; 
+       collect uid) in
+
    let tcloc= ref (0,0) in
    (* Initial position of TC *)
    let action= TeamStatus c in
    let foo = get_status action in
    match foo with
    TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+   print_string(string_of_team_data((score,udl,bdl,age,food,wood)));
    let (towncenterid,ty,health,loc) = List.hd bdl in
    let _= tcloc:= loc in
   
@@ -62,17 +75,11 @@ let bot c =
    let res2= send_action mov2 0 in
    let res3= send_action mov3 0 in
 
+   let _ = Thread.create collect u1 in
+   let _ = Thread.create collect u2 in
+   let _ = Thread.create collect u3 in
+
    while true do
-      
-     
-      
-
-      
-      
-
-   
-     
- 
    
    Thread.delay 1.0 
 (*
