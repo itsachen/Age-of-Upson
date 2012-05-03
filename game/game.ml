@@ -2,6 +2,7 @@ open Definitions
 open Constants
 open Util
 open State
+open Hashqueue
 
 type game = state * Mutex.t
                
@@ -20,14 +21,13 @@ let initGame () : game =
 let rec randPos (c:color): float*float =
 	Random.self_init ();
 	match c with
-	| Red -> let x = Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)
-	         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
-   if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
-   else randPos c
-| Blue -> 
-let x = (Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)) +. cBOARD_WIDTH/.2.
-	        and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
-   if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+		| Red -> let x = Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)
+		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
+						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+						 else randPos c
+		| Blue -> let x = (Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)) +. cBOARD_WIDTH/.2.
+		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
+						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
 						 else randPos c
 
 let initUnitsAndBuildings g : unit =
@@ -40,13 +40,13 @@ let initUnitsAndBuildings g : unit =
 	let (_,_,rb,_,_,_,_) = getTeamStatus s Red in
   List.iter
 		(fun (id,t,h,p) ->
-		Netgraphics.add_update (AddBuilding (id,t,p,h,Red));() ) rb; 
+			Netgraphics.add_update (AddBuilding (id,t,p,h,Red));() ) rb; 
 	setTeamBuildings s Blue [(next_available_id (), TownCenter, 
 		cTOWNCENTER_HEALTH, tile_of_pos (bx,by)) ];
 	let (_,_,bb,_,_,_,_) = getTeamStatus s Blue in
   List.iter
 		(fun (id,t,h,p) ->
-	Netgraphics.add_update (AddBuilding (id,t,p,h,Blue));() ) bb;	 
+			Netgraphics.add_update (AddBuilding (id,t,p,h,Blue));() ) bb;	 
 	for i = 1 to cSTARTING_VILLAGER_COUNT do
 		addTeamUnit s Red (next_available_id (), Villager, 
 			cVILLAGER_HEALTH, (rx+.5.*.float_of_int i,ry));
@@ -56,11 +56,13 @@ let initUnitsAndBuildings g : unit =
 	let (_,ru,_,_,_,_,_) = getTeamStatus s Red in
   List.iter
 		(fun (id,t,h,p) ->
-			Netgraphics.add_update (AddUnit (id,t,p,h,Red));() ) ru;
+			Netgraphics.add_update (AddUnit (id,t,p,h,Red));
+			updateCDTable s (id,0.); () ) ru;
 	let (_,bu,_,_,_,_,_) = getTeamStatus s Blue in
   List.iter
 		(fun (id,t,h,p) ->
-		Netgraphics.add_update (AddUnit (id,t,p,h,Blue));() ) bu;
+			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));
+			updateCDTable s (id,0.); () ) bu;
 	Mutex.unlock m
 	
 
@@ -74,7 +76,7 @@ let startGame g : unit =
 let handleAction g act c : command = 
   let (s,m) = g in 
   Mutex.lock m;
-  let res =
+  let res = 
     (* will involve having to get this unit_id's team color,
      * and checking it against c. Return Failed if the two
      * colors are not equal. Else, match against all the possible actions.
@@ -85,7 +87,7 @@ let handleAction g act c : command =
           (getType unit_id s)
 
     | QueueMove(unit_id,pos) -> 
-       queueMove (unit_id,pos) !(s.moveq) c (getTeam unit_id s)
+       queueMove (unit_id,pos) !(s.movq) c (getTeam unit_id s)
 
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
 
@@ -103,10 +105,10 @@ let handleAction g act c : command =
 
     | ClearAttack id ->
        clearAttack id !(s.attackq) c (getTeam id s)
-          (getType unit_id s)
+          (getType id s)
 
     | ClearMove id ->
-       clearMove id !(s.moveq) c (getTeam id s)
+       clearMove id !(s.movq) c (getTeam id s)
 
     | Upgrade upgrade_type -> failwith "not implemented"
 		in
@@ -128,26 +130,32 @@ let handleStatus g status : command =
   Data data
 
 let check_for_game_over s curr_time : game_result option =
-   let (rs,ru,rb,_,rf,rw,_) = getTeamStatus s Red 
-   and (bs,bu,bb,_,bf,bw,_) = getTeamStatus s Blue
-   and timer = getTimer s in
-   let redLose = (List.length ru = 0) ||
-   (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) rb = [])
-   and blueLose = (List.length bu = 0) ||
-   (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) bb = []) in
-   match (redLose,blueLose) with
-	| (true,false) -> Some (Winner(Blue))
-	| (false,true) -> Some (Winner(Red))
-	| (true,true) -> Some Tie
-	| _ -> 	
-	if curr_time-. timer >= cTIME_LIMIT then
-		let redScore = rf+rw
-		and blueScore = bf+bw in
-		if redScore > blueScore then Some (Winner(Red))
-		else if blueScore > redScore then Some (Winner(Blue))
-		else Some Tie
-	else None
+	let (rs,ru,rb,_,rf,rw,_) = getTeamStatus s Red 
+	and (bs,bu,bb,_,bf,bw,_) = getTeamStatus s Blue
+	and timer = getTimer s in
+	let redLose = (List.length ru = 0) ||
+	 (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) rb = [])
+	and blueLose = (List.length bu = 0) ||
+	 (List.find_all (fun (_,typ,_,_) -> typ = TownCenter) bb = []) in
+	match (redLose,blueLose) with
+		| (true,false) -> Some (Winner(Blue))
+		| (false,true) -> Some (Winner(Red))
+		| (true,true) -> Some Tie
+		| _ -> 	
+		if curr_time-. timer >= cTIME_LIMIT then
+			let redScore = rf+rw
+			and blueScore = bf+bw in
+			if redScore > blueScore then Some (Winner(Red))
+			else if blueScore > redScore then Some (Winner(Blue))
+			else Some Tie
+		else None
+
 		
+(*let handleAttack s currTime: unit =
+	let attackqueue = !(s.attackq) in
+	Hashtbl.iter (fun uid obj -> 
+			if validAttack s currTime) attackqueue;*)
+			
  
 let handleTime g new_time : game_result option = 
   let (s,m) = g in 

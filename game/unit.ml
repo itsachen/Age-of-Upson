@@ -3,6 +3,7 @@ open Constants
 open Util
 open State
 
+
 (* CHANGE BOTH TO LIST.FIND_ALL *)
 (* Returns the team that the UID is. *)
 let getTeam uid s: color option=
