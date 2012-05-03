@@ -3,7 +3,14 @@ open Constants
 open Util
 open Hashqueue
 
-type state
+type team = {color: color; score:score ref; units:unit_data list ref; 
+   buildings:building_data list ref; age:age ref; food:food_count ref; 
+	 wood:wood_count ref; upgrades:upgrades ref}
+
+type state= {team_red: team; team_blue:team; 
+   resources: resource_data list ref; timer: float ref; 
+   movq: hashqueue ref; gatherq: hashqueue ref; attackq: hashqueue ref; 
+   buildq: hashqueue ref; spawnq: hashqueue ref; cdtable: (unit_id,timer) Hashtbl.t ref}
 
 val createState: unit -> state 
 
@@ -16,6 +23,10 @@ val getBuildingStatus: state -> building_id -> building_data
 val getGameStatus: state -> game_data
 
 val getResourceStatus: state -> resource_data list
+
+val getTimer: state -> timer 	
+
+val getCDTable: state -> (unit_id,timer) Hashtbl.t
 
 val setTeamScore: state -> color -> score -> unit 
 
@@ -49,3 +60,13 @@ val setAttackq: state -> hashqueue -> unit
 val setBuildq: state -> hashqueue -> unit 
 	
 val setSpawnq: state -> hashqueue -> unit 
+
+val updateCDTable: state -> (unit_id*timer) -> unit 
+
+val getTeam: unit_id ->  state ->  color option
+
+val getType: unit_id ->  state ->  unit_type option
+
+val getIsBuilding: unit_id -> state -> bool
+
+val validAttack: state -> timer -> (unit_id*attackable_object) ->  bool 

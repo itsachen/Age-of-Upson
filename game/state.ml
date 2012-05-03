@@ -10,7 +10,7 @@ type team = {color: color; score:score ref; units:unit_data list ref;
 type state= {team_red: team; team_blue:team; 
    resources: resource_data list ref; timer: float ref; 
    movq: hashqueue ref; gatherq: hashqueue ref; attackq: hashqueue ref; 
-   buildq: hashqueue ref; spawnq: hashqueue ref}
+   buildq: hashqueue ref; spawnq: hashqueue ref; cdtable: (unit_id,timer) Hashtbl.t ref}
 	
 let createState (u: unit): state = 
 	let red = {color= Red;score=ref 0;units=ref [];buildings=ref [];
@@ -21,11 +21,12 @@ let createState (u: unit): state =
 	and gq = createHashq 0 
 	and aq = createHashq 0 
 	and bq = createHashq 0 
-	and sq = createHashq 0  in
+	and sq = createHashq 0  
+	and cd = Hashtbl.create 0 in
 	{team_red= red; team_blue= blue; 
    resources= ref []; timer= ref 0.; 
    movq=ref mq; gatherq=ref gq; attackq=ref aq; 
-   buildq=ref bq; spawnq= ref sq} 
+   buildq=ref bq; spawnq= ref sq; cdtable = ref cd} 
 
 let getTeamStatus (s: state) (c: color): team_data=
    match c with
@@ -74,6 +75,12 @@ let getGameStatus (s: state) : game_data=
 (* Double check? *)
 let getResourceStatus (s: state) : resource_data list=
    !(s.resources)
+	
+let getTimer (s:state) : timer =
+	!(s.timer)
+	
+let getCDTable (s:state) : (unit_id,timer) Hashtbl.t =
+	!(s.cdtable)
 	
 	
 let setTeamScore (s:state) (c:color) (sc: score):unit =
@@ -148,6 +155,10 @@ let setBuildq (s:state) (q: hashqueue):unit =
 	
 let setSpawnq (s:state) (q: hashqueue):unit =
 	s.spawnq := q; ()
+	
+let updateCDTable (s:state) ((id:unit_id),(t:timer)):unit =
+	let cd = getCDTable s in
+	Hashtbl.replace cd id t
 
 (* CHANGE BOTH TO LIST.FIND_ALL *)
 (* Returns the team that the UID is. *)
@@ -192,6 +203,34 @@ let getIsBuilding uid s: bool=
       (fun (id,ty,h,til) -> uid = id) !(s.team_blue.buildings) in
       if foo2 = [] then false else true)
    | _ -> true
+	
+let validAttack (s:state) (currTime: timer) ((a:unit_id),(t:attackable_object)) : bool =
+	let cdtable = getCDTable s in
+	let attTime = Hashtbl.find cdtable a in
+	if attTime > currTime then false
+	else
+		let (aid,aty,_,apos) = getUnitStatus s a in
+		let range = 
+			match aty with
+				| Archer ->  cARCHER_RANGE
+				| EliteArcher -> cELITE_ARCHER_RANGE
+				| Pikeman -> cPIKEMAN_RANGE
+				| ElitePikeman -> cELITE_PIKEMAN_RANGE
+				| Knight -> cKNIGHT_RANGE
+				| EliteKnight -> cELITE_KNIGHT_RANGE
+				| _ -> 0.
+		in
+		match t with
+			| Building(bid) -> 
+				let (_,_,_,tile) = getBuildingStatus s bid in
+				let dis = Util.distance apos (position_of_tile tile) in
+				dis <= length_of_range range
+      | Unit(uid) -> 
+				let (_,_,_,tpos) = getUnitStatus s uid in
+				let dis = Util.distance apos tpos in
+				dis <= length_of_range range
+
+		
 	
 	
 			
