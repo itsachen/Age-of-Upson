@@ -17,36 +17,11 @@ let queueify l=
    let qq= Queue.create () in
    let _= List.fold_left (fun a c -> Queue.add c qq; 0) (0) l in qq
 
-let count = ref 0 
-
-(*THIS IS THE ONLY METHOD YOU NEED TO COMPLETE FOR THE BOT*)
-(*Make sure to use helper funcitons*)
-let bot c =
-
-   (* Collect thread *)
-   let rec collect uid=
-      let action= QueueCollect uid in
-      let res= send_action action 0 in
-      match res with 
-      | Success -> print_endline ("Talk Success!")
-      | Failed  -> 
-      (print_endline ("Can't collect right now");
-       Thread.delay 0.5; 
-       collect uid) in
-
-   let tcloc= ref (0,0) in
-   (* Initial position of TC *)
-   let action= TeamStatus c in
-   let foo = get_status action in
-   match foo with
-   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
-   print_string(string_of_team_data((score,udl,bdl,age,food,wood)));
-   let (towncenterid,ty,health,loc) = List.hd bdl in
-   let _= tcloc:= loc in
-  
+(* Returns ref of resource queue, ordered in closest to TC *)
+let getResourceQueue tcloc=
    let action= ResourceStatus in
-   let foo= get_status action in
-   match foo with
+   let data= get_status action in
+   match data with 
    ResourceData (resourcel) ->
    let sortedresourcel= List.sort 
    (fun (t1,_,_) (t2,_,_) -> 
@@ -55,29 +30,68 @@ let bot c =
       if d1 < d2 then -1
       else if d1 > d2 then 1
       else 0) resourcel in
+   ref (queueify sortedresourcel)
 
-   let villagerq= queueify udl in
-   let resourceq= queueify sortedresourcel in
+(* Collect thread function *)
+let rec collect crazytuple=
+   match crazytuple with
+   (uid,h,rq,m) ->
+   print_int (h);print_string (" ");
+   let action= QueueCollect uid in
+   let res= send_action action 0 in
+   match res with 
+   | Success -> collect (uid,(h-cRESOURCE_COLLECTED),rq,m)
+   | Failed  -> 
+      (if h <= 0 then 
+          (Mutex.lock m;
+          print_endline ("Ran out of resources");
+          if Queue.is_empty (!rq) then ()
+          else let (t,rty,hnew) = Queue.pop !rq in
+          let mov= QueueMove(uid,(position_of_tile(t))) in
+          let _= send_action mov 0 in
+          Mutex.unlock;
+          collect (uid,hnew,rq,m))
+       else Thread.delay 0.5; collect (uid,h,rq,m))
 
-   let (t1,rty,i) = Queue.pop resourceq in
-   let (u1,ty,h,p) = Queue.pop villagerq in
+let count = ref 0 
+
+(*THIS IS THE ONLY METHOD YOU NEED TO COMPLETE FOR THE BOT*)
+(*Make sure to use helper funcitons*)
+let bot c =
+   (* Initial position of TC *)
+   let tcloc= ref (0,0) in
+   let action= TeamStatus c in
+   let foo = get_status action in
+   match foo with
+   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+   (* print_string(string_of_team_data((score,udl,bdl,age,food,wood))); *)
+   let (towncenterid,ty,health,loc) = List.hd bdl in
+   let _= tcloc:= loc in
+  
+   let villagerq= ref (queueify udl) in
+   let resourceq= getResourceQueue tcloc in
+
+   (* Maybe a villager delagation thread *)
+   let (t1,rty1,h1) = Queue.pop !resourceq in
+   let (u1,ty,h,p) = Queue.pop !villagerq in
    let mov1= QueueMove(u1,(position_of_tile(t1))) in
 
-   let (t2,rty,i) = Queue.pop resourceq in
-   let (u2,ty,h,p) = Queue.pop villagerq in
+   let (t2,rty2,h2) = Queue.pop !resourceq in
+   let (u2,ty,h,p) = Queue.pop !villagerq in
    let mov2= QueueMove(u2,(position_of_tile(t2))) in 
 
-   let (t3,rty,i) = Queue.pop resourceq in
-   let (u3,ty,h,p) = Queue.pop villagerq in
+   let (t3,rty3,h3) = Queue.pop !resourceq in
+   let (u3,ty,h,p) = Queue.pop !villagerq in
    let mov3= QueueMove(u3,(position_of_tile(t3))) in
 
    let res1= send_action mov1 0 in
    let res2= send_action mov2 0 in
    let res3= send_action mov3 0 in
 
-   let _ = Thread.create collect u1 in
-   let _ = Thread.create collect u2 in
-   let _ = Thread.create collect u3 in
+   let cm = Mutex.create () in
+   let _ = Thread.create collect (u1,h1,resourceq,cm) in
+   let _ = Thread.create collect (u2,h2,resourceq,cm) in
+   let _ = Thread.create collect (u3,h3,resourceq,cm) in
 
    while true do
    
