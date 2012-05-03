@@ -83,11 +83,10 @@ let handleAction g act c : command =
      *)
     match act with
     | QueueCollect unit_id -> 
-       queueCollect unit_id !(s.gatherq) c (getTeam unit_id s)
-          (getType unit_id s)
+			State.queueCollect s unit_id c (getUnitColor s unit_id) (getType unit_id s)		
 
     | QueueMove(unit_id,pos) -> 
-       queueMove (unit_id,pos) !(s.movq) c (getTeam unit_id s)
+       State.queueMove s c (getUnitColor s unit_id) unit_id pos
 
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
 
@@ -150,13 +149,147 @@ let check_for_game_over s curr_time : game_result option =
 			else Some Tie
 		else None
 
+
+let rec helpAttack s currTime atkq =
+		if Queue.is_empty atkq then ()
+		else (
+			let (att_id,tar) = Queue.pop atkq in 
+			(*if att_id <> uid then failwith "handleAttack error";*)
+			if validAttack s currTime (att_id,tar) then (
+				let (_,att_ty,_,_) = getUnitStatus s att_id in
+				let inc =get_unit_type_range att_ty
+				and atk = get_unit_type_attack_damage att_ty
+				in 
+				Netgraphics.add_update (DoAttack att_id);
+				updateCDTable s (att_id,currTime+.inc) ;
+				match tar with
+					| Building(tar_id) -> 
+						let (bp1,bp2,health,bp4) = getBuildingStatus s tar_id in
+						let h = 
+							if health-atk < 0 then 0
+							else health-atk 
+						in (
+							Netgraphics.add_update (UpdateBuilding (bp1, h));
+							match (getBuildingColor s bp1) with 
+								| Some Red -> updateTeamBuilding s Red (bp1,bp2,h,bp4)													 
+								| Some Blue -> updateTeamBuilding s Blue (bp1,bp2,h,bp4)
+								| None -> failwith "handleAttack error")
+					| Unit(tar_id) ->
+						let (up1,up2,health,up4) = getUnitStatus s tar_id in
+						let atk = 
+							if isAdvantage att_ty up2 then atk+cSTAB_BONUS
+							else atk 
+						in				
+						let h = 
+							if health-atk < 0 then 0
+							else health-atk 
+						in (
+							Netgraphics.add_update (UpdateUnit (up1, h));
+							match (getUnitColor s up1) with 
+								| Some Red -> updateTeamUnit s Red (up1,up2,h,up4)
+								| Some Blue -> updateTeamUnit s Blue (up1,up2,h,up4)
+								| None -> failwith "handleAttack error")	)
+				else helpAttack s currTime atkq
+		)
 		
-(*let handleAttack s currTime: unit =
+						
+let handleAttack s currTime: unit =
 	let attackqueue = !(s.attackq) in
-	Hashtbl.iter (fun uid obj -> 
-			if validAttack s currTime) attackqueue;*)
+	Hashtbl.iter (fun uid q -> 
+		match q with
+			| AttackQueue(atkq) -> helpAttack s currTime atkq
+			| _ -> ()
+			) attackqueue
 			
- 
+let removeDead (s:state) :unit =
+	let red_units = !(s.team_red.units)
+	and blue_units = !(s.team_blue.units)
+	and red_buildings = !(s.team_red.buildings)
+	and blue_buildings = !(s.team_blue.buildings) in
+	let red_score1 = List.fold_left (fun a x ->
+		let (id,_,health,_) = x in
+		if health <= 0 then (removeTeamUnit s Red id; 
+												 Netgraphics.add_update (RemoveUnit id);
+												 a+cKILL_UNIT_SCORE )
+		else a) 0 red_units in
+	let red_score = List.fold_left (fun a x ->
+		let (id,_,health,_) = x in
+		if health <= 0 then (removeTeamBuilding s Red id;
+												 Netgraphics.add_update (RemoveBuilding id); 
+												 a+cKILL_BUILDING_SCORE )
+		else a) red_score1 red_buildings in
+	let blue_score1 = List.fold_left (fun a x ->
+		let (id,_,health,_) = x in
+		if health <= 0 then (removeTeamUnit s Blue id;
+												 Netgraphics.add_update (RemoveUnit id); 
+												 a+cKILL_UNIT_SCORE )
+		else a) 0 blue_units in
+	let blue_score = List.fold_left (fun a x ->
+		let (id,_,health,_) = x in
+		if health <= 0 then (removeTeamBuilding s Blue id; 
+												 Netgraphics.add_update (RemoveBuilding id);
+												 a+cKILL_BUILDING_SCORE )
+		else a) blue_score1 blue_buildings in
+		setTeamScore s Red (!(s.team_red.score)+red_score);
+		setTeamScore s Blue (!(s.team_blue.score)+blue_score);
+		Netgraphics.add_update (UpdateScore (Red,!(s.team_red.score)) );
+		Netgraphics.add_update (UpdateScore (Blue,!(s.team_blue.score)) )
+	
+let removeResource (s:state) : unit =
+	let resources = !(s.resources) in
+	let new_resources = List.fold_left (fun a x -> 
+		let (tile,_,count) = x in
+		if count <=0 then (Netgraphics.add_update (RemoveResource tile); a)
+		else x::a
+		) [] resources in
+	setResources s new_resources 
+	
+let handleBuildingCreation s currTime :unit =
+	let buildqueue = !(s.buildq) in
+	Hashtbl.iter (fun uid q -> 
+		match q with
+			| BuildQueue(bq) -> 
+				(if Queue.is_empty bq then ()
+				 else 
+					let (uid,_) = Queue.peek bq in
+					let (_,_,_,u_pos) = getUnitStatus s uid in
+					let cd = Hashtbl.find (getCDTable s) uid in
+					if cd <= currTime then let (u,b_ty)=Queue.pop bq in
+					let color = getUnitColor s u in
+					match color with 
+						| Some c -> (
+							let b_id = next_available_id ()
+							and b_h = get_building_type_health b_ty
+							and b_tile = tile_of_pos u_pos in
+							addTeamBuilding s c 
+							(b_id, b_ty,b_h,b_tile);
+							Netgraphics.add_update (AddBuilding (b_id,b_ty,b_tile,b_h,c))
+							)
+						| None -> () )
+			| _ -> ()
+			) buildqueue
+	
+let moveUnits (s:state) currTime: unit =
+	let movequeue = !(s.movq) in
+	Hashtbl.iter (fun uid q -> 
+		match q with
+			| MoveQueue(mq) -> (
+				if Queue.is_empty mq then ()
+				else 
+					let (id,v) = Queue.pop mq in
+					let (u_id,u_ty,u_h,_) = getUnitStatus s id in
+					if u_ty = Villager && (Hashtbl.find (getCDTable s) u_id) > currTime
+					then ();
+					match (getUnitColor s u_id) with
+						| None -> ()
+						| Some c -> (
+							updateTeamUnit s c (u_id,u_ty,u_h,v);
+							Netgraphics.add_update (MoveUnit (u_id,[v],c))
+							)
+				)
+			| _ -> ()) movequeue
+
+
 let handleTime g new_time : game_result option = 
   let (s,m) = g in 
   Mutex.lock m;
@@ -164,12 +297,10 @@ let handleTime g new_time : game_result option =
   (match res with
    | Some c -> ()
    | None -> 
-		(*handleAttack s;*)
-		(*removeDead s;*)
-		(* updateScore s;*)
-		(* removeResource s;*)
-		(* handleMove s;*)
-		(* moveUnits s  *)
-       failwith "not implemented");
+		(handleAttack s new_time;
+		removeDead s;
+		removeResource s;
+		handleBuildingCreation s new_time;
+		moveUnits s new_time; ) );
   Mutex.unlock m;
   res

@@ -88,6 +88,11 @@ let setTeamScore (s:state) (c:color) (sc: score):unit =
 		| Red -> s.team_red.score := sc; ()
 		| Blue -> s.team_blue.score := sc; ()
 
+let addTeamScore (s:state) (c:color) (sc: score):unit =
+	match c with
+		| Red -> s.team_red.score := (!(s.team_red.score) + sc); ()
+		| Blue -> s.team_blue.score := (!(s.team_red.score) + sc); ()
+
 let addTeamUnit (s:state) (c:color) (u: unit_data):unit =
 	match c with
 		| Red -> s.team_red.units := u:: !(s.team_red.units); ()
@@ -110,11 +115,33 @@ let updateTeamUnit (s:state) (c:color) (u: unit_data):unit =
 	removeTeamUnit s c id;
 	addTeamUnit s c u
 	
+let addTeamBuilding (s:state) (c:color) (b: building_data):unit =
+	match c with
+		| Red -> s.team_red.buildings := b:: !(s.team_red.buildings); ()
+		| Blue -> s.team_blue.buildings := b:: !(s.team_blue.buildings); ()
+
+let removeTeamBuilding (s:state) (c:color) (id: building_id):unit =
+	let rec aux acc = function
+  | [] -> List.rev acc
+  | (i,_,_,_) as x::xs ->
+      if id = i
+      then aux acc xs
+      else aux (x::acc) xs
+  in
+	match c with
+		| Red -> s.team_red.buildings := aux [] !(s.team_red.buildings); ()
+		| Blue -> s.team_blue.buildings := aux [] !(s.team_blue.buildings); ()
+	
+let updateTeamBuilding (s:state) (c:color) (b: building_data):unit =
+	let (id,_,_,_) = b in
+	removeTeamBuilding s c id;
+	addTeamBuilding s c b
+	
 let setTeamBuildings (s:state) (c:color) (b: building_data list):unit =
 	match c with
 		| Red -> s.team_red.buildings := b; ()
 		| Blue -> s.team_blue.buildings := b; ()
-
+		
 let setTeamAge (s:state) (c:color) (a: age):unit =
 	match c with
 		| Red -> s.team_red.age := a; ()
@@ -176,8 +203,22 @@ let getTeam uid s: color option=
       (-1,Villager,-1,(-1.0,-1.0)) !(s.team_blue.units) in
       if foo2= (-1,Villager,-1,(-1.0,-1.0)) then None
       else Some(Blue))
-   else Some(Red)
-
+   else Some(Red) 
+	
+let getUnitColor (s:state) (uid:unit_id): color option =
+	if (List.filter (fun (x,_,_,_) -> x=uid) 
+		!(s.team_red.units)) <> [] then Some Red
+	else if (List.filter (fun (x,_,_,_) -> x=uid) 
+		!(s.team_blue.units)) <> [] then Some Blue
+	else None
+		
+let getBuildingColor (s:state) (bid:building_id): color option =
+	if (List.filter (fun (x,_,_,_) -> x=bid) 
+		!(s.team_red.buildings)) <> [] then Some Red
+	else if (List.filter (fun (x,_,_,_) -> x=bid) 
+		!(s.team_blue.buildings)) <> [] then Some Blue
+	else None
+		
 let getType uid s: unit_type option=
    let foo= List.fold_left
       (fun a c ->
@@ -209,6 +250,7 @@ let validAttack (s:state) (currTime: timer) ((a:unit_id),(t:attackable_object)) 
 	let attTime = Hashtbl.find cdtable a in
 	if attTime > currTime then false
 	else
+		let att_color = getUnitColor s a in
 		let (aid,aty,_,apos) = getUnitStatus s a in
 		let range = 
 			match aty with
@@ -221,17 +263,115 @@ let validAttack (s:state) (currTime: timer) ((a:unit_id),(t:attackable_object)) 
 				| _ -> 0.
 		in
 		match t with
-			| Building(bid) -> 
-				let (_,_,_,tile) = getBuildingStatus s bid in
-				let dis = Util.distance apos (position_of_tile tile) in
-				dis <= length_of_range range
-      | Unit(uid) -> 
-				let (_,_,_,tpos) = getUnitStatus s uid in
-				let dis = Util.distance apos tpos in
-				dis <= length_of_range range
+			| Building(bid) -> (
+				match (getBuildingColor s bid) with
+					| None -> false
+					| c -> 
+						if c = att_color then false
+						else (
+							let (_,_,_,tile) = getBuildingStatus s bid in
+							let dis = Util.distance apos (position_of_tile tile) in
+							dis <= length_of_range range))
+      | Unit(uid) -> (
+				match (getUnitColor s uid) with
+					| None -> false
+					| c -> 
+						if c = att_color then false 
+						else (
+							let (_,_,_,tpos) = getUnitStatus s uid in
+							let dis = Util.distance apos tpos in
+							dis <= length_of_range range) )
 
-		
+let isAdvantage att_type tar_type : bool =
+	match	(att_type,tar_type) with
+		| (Pikeman,Knight) -> true
+		| (Pikeman,EliteKnight) -> true
+		| (ElitePikeman,Knight) -> true
+		| (ElitePikeman,EliteKnight) -> true
+		| (Archer,Pikeman) -> true
+		| (EliteArcher,Pikeman) -> true
+		| (Archer,ElitePikeman) -> true
+		| (EliteArcher,ElitePikeman) -> true
+		| (Knight,Archer) -> true
+		| (Knight,EliteArcher) -> true
+		| (EliteKnight,Archer) -> true
+		| (EliteKnight,EliteArcher) -> true
+		| _ -> false
 	
-	
+let getTeamAge (s:state) (c:color) : age =
+	match c with
+		| Red -> !(s.team_red.age)
+		| Blue -> !(s.team_blue.age)
+
+let updateResource (s:state) (r:resource_data):unit =
+	let (tile,_,_) = r in
+	let new_resources = List.fold_left (fun a x ->
+		let (r_tile,_,_) = x in
+		if r_tile = tile then r::a
+		else x::a ) [] (getResourceStatus s) in
+	setResources s new_resources
 			
-	
+let getTeamScore (s:state) (c:color): score =
+	match c with
+		| Red -> !(s.team_red.score)
+		| Blue -> !(s.team_blue.score)
+
+
+let queueCollect (s:state) uid c copt tyopt: result=
+   (* Check if uid is of same color*)
+   match copt with
+   | Some(cresult) -> 
+      (if c = cresult then 
+         (match tyopt with
+          | Some(Villager) -> (
+            let (u_id,u_type,u_h,u_pos) = getUnitStatus s uid in
+						let u_tile = tile_of_pos u_pos in
+						let resources = getResourceStatus s in
+						let r = List.filter (fun (r_tile,_,_) -> 
+							r_tile = u_tile) resources in
+						match r with
+							| [] -> Failed
+							| _ -> (
+								let (r_tile,r_ty,count)= List.hd r in
+								let inc = 
+									match (getTeamAge s c) with
+										| DarkAge -> cRESOURCE_COLLECTED
+										| ImperialAge -> cADVANCED_RESOURCE_COLLECTED
+								in let r_inc = 
+									if inc <= count then inc
+									else count
+								in updateResource s (r_tile,r_ty,count-r_inc);
+								Netgraphics.add_update (DoCollect (u_id,c,r_ty,r_inc));
+								addTeamScore s c r_inc;
+								Netgraphics.add_update (UpdateScore (c,getTeamScore s c));
+								Success	) )
+          | _ -> Failed (* uid does not exist *) )
+       else Failed (* unit belongs to other team *))
+   | None -> Failed (* uid does not exist *)
+
+let queueMove (s:state) (c:color) (copt: color option) (uid:unit_id) (dest:vector):result=
+	match copt with
+		| None -> Failed
+		| Some color -> 
+			if color <> c then Failed
+			else (
+				if not (is_valid_pos dest ) then Failed
+				else
+					let movequeue = !(s.movq) in
+					let q = Hashtbl.find movequeue uid in
+					match q with 
+						| MoveQueue(mq) -> (
+							let (_,u_ty,_,u_pos) = getUnitStatus s uid in
+							let (x1,y1) = u_pos
+							and (x2,y2) = dest
+							and speed = get_unit_type_speed u_ty in
+							let d = distance (x1,y1) (x2,y2) in
+							let step = (speed*.(x2-.x1)/.d,speed*.(y2-.y1)/.d) in
+							let rec helpEnq (xc,yc) (xd,yd) (x0,y0): result =
+								if distance (xc,yc) (xd,yd) < speed
+								then (Queue.push (uid,(xd,yd)) mq; Success)
+								else (Queue.push (uid,(xc+.x0,yc+.y0)) mq; 
+											helpEnq (xc+.x0,yc+.y0) (xd,yd) (x0,y0)) in
+							helpEnq (x1,y1) (x2,y2) step ) 
+						| _ -> Failed )
+		

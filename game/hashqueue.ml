@@ -19,25 +19,40 @@ let createHashq (n: int) : hashqueue =
 (*c is a color type already*)
 
 (* q is a ref *)
-let queueCollect uid (q:hashqueue) c copt tyopt: result=
+(*let queueCollect (s:state) uid c copt tyopt: result=
    (* Check if uid is of same color*)
    match copt with
    | Some(cresult) -> 
       (if c = cresult then 
          (match tyopt with
-          | Some(tyresult) -> 
-             if tyresult = Villager then (
-                let oldq= Hashtbl.find q uid in
-                match oldq with
-                |GatherQueue(qq) ->(    
-                Queue.add uid qq;
-                Hashtbl.replace q uid (GatherQueue(qq));
-                Success)
-                |_ -> Success)
-             else Success
-          | None -> Failed (* uid does not exist *) )
+          | Some(Villager) -> 
+            let (u_id,u_type,u_h,u_pos) = getUnitStatus s unit_id in
+						let u_tile = tile_of_pos u_pos in
+						let resources = getResourceStatus s in
+						let r = List.filter (fun (r_tile,_,_) -> 
+							r_tile = u_tile) resources in
+						match r with
+							| [] -> Failed
+							| _ -> (
+								let (r_tile,r_ty,count)= List.hd r in
+								let inc = 
+									match (getTeamAge s c) with
+										| DarkAge -> cRESOURCE_COLLECTED
+										| ImperialAge -> cADVANCED_RESOURCE_COLLECTED
+								in let r_inc = 
+									if r_inc <= count then r_inc
+									else count
+								in updateResource s (r_tile,r_ty,count-r_inc);
+								Netgraphics.add_update (DoCollect (u_id,c,r_ty,r_inc));
+								addTeamScore s c r_inc;
+								Netgraphics.add_update (UpdateScore (c,getTeamScore s c))
+								
+								)
+          | _ -> Failed (* uid does not exist *) )
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
+
+
 
 let queueMove movtup q c copt: result=
    (* Check if uid is of same color *)
@@ -53,7 +68,7 @@ let queueMove movtup q c copt: result=
           | _ -> Success)
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
-
+*)
 let queueAttack atttup q c copt tyopt: result=
    (* Check if uid is of same color*)
    match copt with

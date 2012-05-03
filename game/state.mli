@@ -30,12 +30,20 @@ val getCDTable: state -> (unit_id,timer) Hashtbl.t
 
 val setTeamScore: state -> color -> score -> unit 
 
+val addTeamScore: state -> color -> score -> unit
+
 (*val setTeamUnits: state -> color -> unit_data list -> unit  *)
 val addTeamUnit: state -> color -> unit_data -> unit
 
 val removeTeamUnit: state -> color -> unit_id -> unit
 
 val updateTeamUnit: state -> color -> unit_data -> unit
+
+val addTeamBuilding: state -> color -> building_data -> unit
+
+val removeTeamBuilding: state -> color -> building_id -> unit
+
+val updateTeamBuilding: state -> color -> building_data -> unit
 
 val setTeamBuildings: state -> color -> building_data list -> unit 
 
@@ -65,8 +73,24 @@ val updateCDTable: state -> (unit_id*timer) -> unit
 
 val getTeam: unit_id ->  state ->  color option
 
+val getUnitColor: state -> unit_id -> color option
+
+val getBuildingColor: state -> building_id -> color option
+
 val getType: unit_id ->  state ->  unit_type option
 
 val getIsBuilding: unit_id -> state -> bool
 
 val validAttack: state -> timer -> (unit_id*attackable_object) ->  bool 
+
+val isAdvantage: unit_type -> unit_type -> bool
+
+val getTeamAge: state -> color -> age
+
+val updateResource: state -> resource_data -> unit
+
+val getTeamScore: state -> color -> score
+
+val queueCollect: state -> unit_id -> color -> color option -> unit_type option -> result
+
+val queueMove: state -> color -> color option -> unit_id -> vector -> result
