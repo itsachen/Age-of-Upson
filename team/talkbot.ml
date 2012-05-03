@@ -25,12 +25,16 @@ let bot c =
    let tcloc= ref (0,0) in
    (* Initial position of TC *)
    let action= TeamStatus c in
-   let (score,udl,bdl,age,food,wood,upgrades) = get_status action in
+   let foo = get_status action in
+   match foo with
+   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
    let (towncenterid,ty,health,loc) = List.hd bdl in
-   tcloc:= loc in
+   let _= tcloc:= loc in
   
    let action= ResourceStatus in
-   let resourcel= get_status action in
+   let foo= get_status action in
+   match foo with
+   ResourceData (resourcel) ->
    let sortedresourcel= List.sort 
    (fun (t1,_,_) (t2,_,_) -> 
       let d1= distance (position_of_tile(!tcloc)) (position_of_tile(t1)) in
@@ -44,15 +48,15 @@ let bot c =
 
    let (t1,rty,i) = Queue.pop resourceq in
    let (u1,ty,h,p) = Queue.pop villagerq in
-   let mov1= QueueMove(u1,(position_of_tile(t1)) in
+   let mov1= QueueMove(u1,(position_of_tile(t1))) in
 
    let (t2,rty,i) = Queue.pop resourceq in
    let (u2,ty,h,p) = Queue.pop villagerq in
-   let mov2= QueueMove(u2,(position_of_tile(t2)) in 
+   let mov2= QueueMove(u2,(position_of_tile(t2))) in 
 
    let (t3,rty,i) = Queue.pop resourceq in
    let (u3,ty,h,p) = Queue.pop villagerq in
-   let mov3= QueueMove(u3,(position_of_tile(t3)) in
+   let mov3= QueueMove(u3,(position_of_tile(t3))) in
 
    let res1= send_action mov1 0 in
    let res2= send_action mov2 0 in
