@@ -58,6 +58,9 @@ print_int (uid); print_string(": ");print_endline ("Walking");
          Thread.delay 1.0;
 collect (uid,h,tcloc,m)) (* Walking *)
 
+let otherColor c=
+   if c = Red then Blue else Red
+
 let count = ref 0 
 
 (*THIS IS THE ONLY METHOD YOU NEED TO COMPLETE FOR THE BOT*)
@@ -172,12 +175,35 @@ let bot c =
    let action= Upgrade(UnitUpgrade(Pikeman)) in
    let res= send_action action 0 in
 
-   let _ = match res with
-     | Success -> print_endline("WOOOOO")
-     | Failed -> print_endline("No.") in
+   Thread.delay 1.0;
+
+   let action= TeamStatus (otherColor c) in
+   let foo = get_status action in
+   match foo with
+   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+
+   let blist= List.filter (fun (id,ty,h,tl) -> ty = TownCenter) bdl in
+   let (enemyid,_,_,enemypos) = List.hd blist in
+
+   let action= TeamStatus c in
+   let foo = get_status action in
+   match foo with
+   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+
+   let _= List.fold_left
+   (fun a (id,_,_,_) ->
+   send_action (QueueMove 
+   (id,position_of_tile(enemypos))) 0) Success udl in
+
+   Thread.delay 5.0;
 
    while true do
-   
+
+   let _= List.fold_left
+   (fun a (id,_,_,_) ->
+   send_action (QueueAttack 
+   (id,Building(enemyid))) 0) Success udl in
+
    Thread.delay 1.0;
 
 
