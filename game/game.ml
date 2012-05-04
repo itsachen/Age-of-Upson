@@ -58,13 +58,15 @@ let initUnitsAndBuildings g : unit =
 		(fun (id,t,h,p) ->
 			Netgraphics.add_update (AddUnit (id,t,p,h,Red));
 			Hashtbl.add !(s.movq) id (MoveQueue(Queue.create ()));
-			updateCDTable s (id,0.); () ) ru;
+			Hashtbl.add !(s.gatherq) id (GatherQueue(Queue.create ()));
+			Hashtbl.add !(s.cdtable) id 0.; () ) ru;
 	let (_,bu,_,_,_,_,_) = getTeamStatus s Blue in
   List.iter
 		(fun (id,t,h,p) ->
 			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));
 			Hashtbl.add !(s.movq) id (MoveQueue(Queue.create ()));
-			updateCDTable s (id,0.); () ) bu;
+			Hashtbl.add !(s.gatherq) id (GatherQueue(Queue.create ()));
+			Hashtbl.add !(s.cdtable) id 0.; () ) bu;
 	Mutex.unlock m
 	
 
@@ -144,8 +146,8 @@ let check_for_game_over s curr_time : game_result option =
 		| (true,true) -> Some Tie
 		| _ -> 	
 		if curr_time-. timer >= cTIME_LIMIT then
-			let redScore = rf+rw
-			and blueScore = bf+bw in
+			let redScore = getTeamScore s Red 
+			and blueScore = getTeamScore s Blue in
 			if redScore > blueScore then Some (Winner(Red))
 			else if blueScore > redScore then Some (Winner(Blue))
 			else Some Tie
@@ -252,7 +254,7 @@ let handleBuildingCreation s currTime :unit =
 		match q with
 			| BuildQueue(bq) -> 
 				(if Queue.is_empty bq then ()
-				 else 
+				 else ( 
 					let (uid,_) = Queue.peek bq in
 					let (_,_,_,u_pos) = getUnitStatus s uid in
 					let cd = Hashtbl.find (getCDTable s) uid in
@@ -268,6 +270,7 @@ let handleBuildingCreation s currTime :unit =
 							Netgraphics.add_update (AddBuilding (b_id,b_ty,b_tile,b_h,c))
 							)
 						| None -> () )
+					  )
 			| _ -> ()
 			) buildqueue
 	
@@ -277,7 +280,7 @@ let moveUnits (s:state) currTime: unit =
 		match q with
 			| MoveQueue(mq) -> (
 				if Queue.is_empty mq then ()
-				else 
+				else (
 					let (id,v) = Queue.pop mq in
 					let (u_id,u_ty,u_h,_) = getUnitStatus s id in
 					if u_ty = Villager && (Hashtbl.find (getCDTable s) u_id) > currTime
@@ -287,10 +290,46 @@ let moveUnits (s:state) currTime: unit =
 						| Some c -> (
 							updateTeamUnit s c (u_id,u_ty,u_h,v);
 							Netgraphics.add_update (MoveUnit (u_id,[v],c))
-							)
+							) )
 				)
 			| _ -> ()) movequeue
 
+let handleCollect s currTime : unit =
+	let collectqueue = !(s.gatherq) in
+	Hashtbl.iter (fun uid q -> 
+		match q with
+			| GatherQueue(cq) -> (
+				if Queue.is_empty cq then ()
+				else (
+					let resource = Queue.pop cq in
+					let (u_id,u_ty,u_h,_) = getUnitStatus s uid in
+					if u_ty <> Villager then ()
+					else ( 
+						let cd = Hashtbl.find (getCDTable s) uid in
+						if cd>currTime then ()
+						else (
+							updateCDTable s (uid,currTime+.cVILLAGER_COOLDOWN) ;
+							let (r_tile,r_ty,count)= resource in
+							let color = 
+								match (getUnitColor s uid) with
+									| Some c  -> c
+									| None -> failwith "getUnitColor Error" in
+							let inc = 
+								match (getTeamAge s color) with
+									| DarkAge -> cRESOURCE_COLLECTED
+									| ImperialAge -> cADVANCED_RESOURCE_COLLECTED
+							in let r_inc = 
+								if inc <= count then inc
+								else count
+							in updateResource s (r_tile,r_ty,count-r_inc);
+							Netgraphics.add_update (DoCollect (u_id,color,r_ty,r_inc));
+							addTeamScore s color r_inc;
+							Netgraphics.add_update (UpdateScore (color,getTeamScore s color))
+							)
+							)
+						)
+				)
+			| _ -> ()) collectqueue	
 
 let handleTime g new_time : game_result option = 
   let (s,m) = g in 
@@ -299,7 +338,9 @@ let handleTime g new_time : game_result option =
   (match res with
    | Some c -> ()
    | None -> 
-		(handleAttack s new_time;
+		(
+		handleCollect s new_time;
+		handleAttack s new_time;
 		removeDead s;
 		removeResource s;
 		handleBuildingCreation s new_time;
