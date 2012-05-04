@@ -10,7 +10,8 @@ type team = {color: color; score:score ref; units:unit_data list ref;
 type state= {team_red: team; team_blue:team; 
    resources: resource_data list ref; timer: float ref; 
    movq: hashqueue ref; gatherq: hashqueue ref; attackq: hashqueue ref; 
-   buildq: hashqueue ref; spawnq: hashqueue ref; cdtable: (unit_id,timer) Hashtbl.t ref}
+   buildq: hashqueue ref; spawnq: hashqueue ref; 
+	 cdtable: (unit_id,timer) Hashtbl.t ref}
 	
 let createState (u: unit): state = 
 	let red = {color= Red;score=ref 0;units=ref [];buildings=ref [];
@@ -258,7 +259,8 @@ let getIsBuilding uid s: bool=
       if foo2 = [] then false else true)
    | _ -> true
 	
-let validAttack (s:state) (currTime: timer) ((a:unit_id),(t:attackable_object)) : bool =
+let validAttack (s:state) (currTime: timer) 
+		((a:unit_id),(t:attackable_object)) : bool =
 	let cdtable = getCDTable s in
 	let attTime = Hashtbl.find cdtable a in
 	if attTime > currTime then false
@@ -353,19 +355,20 @@ let queueCollect (s:state) uid c copt tyopt: result=
 						let r = List.filter (fun (r_tile,_,_) -> 
 							r_tile = u_tile) resources in
 						match r with
-							| [] -> Failed
-							| _ -> (
+							| [h] -> (
 								let collectqueue = !(s.gatherq) in 
 								let q = Hashtbl.find collectqueue uid in
 								match q with 
 									| GatherQueue(gq) -> 
-										(Queue.push (List.hd r) gq;Success)
-									| _  -> Failed ) )
+										(Queue.push (h) gq;Success)
+									| _  -> Failed )
+							| _ -> Failed )
           | _ -> Failed (* uid does not exist *) 
        else Failed (* unit belongs to other team *)
    | None -> Failed (* uid does not exist *)
 
-let queueMove (s:state) (c:color) (copt: color option) (uid:unit_id) (dest:vector):result=
+let queueMove (s:state) (c:color) (copt: color option) 
+		(uid:unit_id) (dest:vector):result=
 	match copt with
 		| None -> Failed
 		| Some color -> 
@@ -484,10 +487,12 @@ let helpSpawn s c b u_ty:unit =
 	Hashtbl.add !(s.buildq) id (BuildQueue(Queue.create ()));
 	Hashtbl.add !(s.attackq) id (AttackQueue(Queue.create ()));
 	Hashtbl.add !(s.cdtable) id 0.;
-	Netgraphics.add_update (AddUnit (id,u_ty,position_of_tile b_tile,get_unit_type_health u_ty,c))
+	Netgraphics.add_update 
+		(AddUnit (id,u_ty,position_of_tile b_tile,get_unit_type_health u_ty,c))
 						
 																		
-let queueSpawn (s:state) (c:color) (copt:color option) (b:building_id) (u_ty:unit_type) : result =
+let queueSpawn (s:state) (c:color) (copt:color option) (b:building_id) 
+		(u_ty:unit_type) : result =
 	match copt with
 		| None -> Failed
 		| Some color -> 
@@ -507,19 +512,22 @@ let queueSpawn (s:state) (c:color) (copt:color option) (b:building_id) (u_ty:uni
 								| Villager -> Failed
 								| Pikeman -> (helpSpawn s c b u_ty;Success)
 								| ElitePikeman -> (
-									if up1 && (age=ImperialAge) then (helpSpawn s c b u_ty;Success)
+									if up1 && (age=ImperialAge) 
+									then (helpSpawn s c b u_ty;Success)
 									else Failed )
 							  | Archer -> (
 									if age=ImperialAge then (helpSpawn s c b u_ty;Success)
 									else Failed )
 								| EliteArcher -> (
-									if up2 && (age=ImperialAge) then (helpSpawn s c b u_ty;Success)
+									if up2 && (age=ImperialAge) 
+									then (helpSpawn s c b u_ty;Success)
 									else Failed )
 								| Knight -> (
 									if age=ImperialAge then (helpSpawn s c b u_ty;Success)
 									else Failed )
 								| EliteKnight -> (
-									if up3 && (age=ImperialAge) then (helpSpawn s c b u_ty;Success)
+									if up3 && (age=ImperialAge) 
+									then (helpSpawn s c b u_ty;Success)
 									else Failed )
 							)
 				)
@@ -534,7 +542,8 @@ let upgrade s c upgrade_type: result =
        | AgeUpgrade -> 
           (if c = Red then 
              (if (!(s.team_red.age)) = DarkAge then 
-                (if (!(s.team_red.wood) >= agewood) && (!(s.team_red.food) >= agefood) then 
+                (if (!(s.team_red.wood) >= agewood) 
+								&& (!(s.team_red.food) >= agefood) then 
                    (s.team_red.wood:= !(s.team_red.wood) - agewood;
                     s.team_red.food:= !(s.team_red.food) - agefood;
                     s.team_red.age:= ImperialAge;
@@ -544,7 +553,8 @@ let upgrade s c upgrade_type: result =
              else Failed) 
            else (
               (if (!(s.team_blue.age)) = DarkAge then 
-                  (if (!(s.team_blue.wood) >= agewood) && (!(s.team_blue.food) >= agefood) then 
+                  (if (!(s.team_blue.wood) >= agewood) 
+									&& (!(s.team_blue.food) >= agefood) then 
                      (s.team_blue.wood:= !(s.team_blue.wood) - agewood;
                       s.team_blue.food:= !(s.team_blue.food) - agefood;
                       s.team_blue.age:= ImperialAge;
@@ -560,14 +570,15 @@ let upgrade s c upgrade_type: result =
                  | Pikeman | ElitePikeman -> 
                     (if p then Failed 
                      else 
-                        (if (!(s.team_red.wood) >= pikewood) && (!(s.team_red.food) >= pikefood) then
+                        (if (!(s.team_red.wood) >= pikewood) 
+												&& (!(s.team_red.food) >= pikefood) then
                            (s.team_red.wood:= !(s.team_red.wood) - pikewood;
                             s.team_red.food:= !(s.team_red.food) - pikefood;
                             s.team_red.upgrades:= (true,a,k);
                             let newunitlist= List.fold_left
                               (fun a (id,ty,h,pos) -> 
-                                 if ty = Pikeman then (id,ElitePikeman,h,pos)::a 
-                                 else (id,ty,h,pos)::a) [] !(s.team_red.units) in
+                              if ty = Pikeman then (id,ElitePikeman,h,pos)::a 
+                              else (id,ty,h,pos)::a) [] !(s.team_red.units) in
                             s.team_red.units:= newunitlist;
                             Netgraphics.add_update (UpgradeUnit (Pikeman,Red));
                             Success)
@@ -575,14 +586,15 @@ let upgrade s c upgrade_type: result =
                  | Archer |EliteArcher ->
                     (if a then Failed 
                      else 
-                        (if (!(s.team_red.wood) >= archerwood) && (!(s.team_red.food) >= archerfood) then
+                        (if (!(s.team_red.wood) >= archerwood) 
+												&& (!(s.team_red.food) >= archerfood) then
                            (s.team_red.wood:= !(s.team_red.wood) - archerwood;
                             s.team_red.food:= !(s.team_red.food) - archerfood;
                             s.team_red.upgrades:= (p,true,k);
                             let newunitlist= List.fold_left
                               (fun a (id,ty,h,pos) -> 
-                                 if ty = Archer then (id,EliteArcher,h,pos)::a 
-                                 else (id,ty,h,pos)::a) [] !(s.team_red.units) in
+                              if ty = Archer then (id,EliteArcher,h,pos)::a 
+                              else (id,ty,h,pos)::a) [] !(s.team_red.units) in
                             s.team_red.units:= newunitlist;
                             Netgraphics.add_update (UpgradeUnit (Archer,Red));
                             Success)
@@ -590,14 +602,15 @@ let upgrade s c upgrade_type: result =
                  | Knight |EliteKnight ->
                     (if k then Failed
                      else 
-                        (if (!(s.team_red.wood) >= knightwood) && (!(s.team_red.food) >= knightfood) then
+                        (if (!(s.team_red.wood) >= knightwood) 
+												&& (!(s.team_red.food) >= knightfood) then
                            (s.team_red.wood:= !(s.team_red.wood) - knightwood;
                             s.team_red.food:= !(s.team_red.food) - knightfood;
                             s.team_red.upgrades:= (p,a,true);
                             let newunitlist= List.fold_left 
                               (fun a (id,ty,h,pos) -> 
-                                 if ty = Knight then (id,EliteKnight,h,pos)::a 
-                                 else (id,ty,h,pos)::a) [] !(s.team_red.units) in
+                              if ty = Knight then (id,EliteKnight,h,pos)::a 
+                              else (id,ty,h,pos)::a) [] !(s.team_red.units) in
                             s.team_red.units:= newunitlist;
                             Netgraphics.add_update (UpgradeUnit (Knight,Red));
                             Success)
@@ -611,47 +624,50 @@ let upgrade s c upgrade_type: result =
                   | Pikeman |ElitePikeman -> 
                      (if p then Failed 
                       else 
-                         (if (!(s.team_blue.wood) >= pikewood) && (!(s.team_blue.food) >= pikefood) then
+                         (if (!(s.team_blue.wood) >= pikewood) 
+												&& (!(s.team_blue.food) >= pikefood) then
                             (s.team_blue.wood:= !(s.team_blue.wood) - pikewood;
                              s.team_blue.food:= !(s.team_blue.food) - pikefood;
                              s.team_blue.upgrades:= (true,a,k);
                              let newunitlist= List.fold_left
-                               (fun a (id,ty,h,pos) -> 
-                                  if ty = Pikeman then (id,ElitePikeman,h,pos)::a 
-                                  else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
-                             s.team_blue.units:= newunitlist;
-                             Netgraphics.add_update (UpgradeUnit (Pikeman,Blue));
-                             Success)
+                              (fun a (id,ty,h,pos) -> 
+                              if ty = Pikeman then (id,ElitePikeman,h,pos)::a 
+                              else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
+                           s.team_blue.units:= newunitlist;
+                           Netgraphics.add_update (UpgradeUnit (Pikeman,Blue));
+                           Success)
                          else Failed))
                   | Archer |EliteArcher ->
                      (if a then Failed 
                       else 
-                         (if (!(s.team_blue.wood) >= archerwood) && (!(s.team_blue.food) >= archerfood) then
-                            (s.team_blue.wood:= !(s.team_blue.wood) - archerwood;
-                             s.team_blue.food:= !(s.team_blue.food) - archerfood;
-                             s.team_blue.upgrades:= (p,true,k);
+                         (if (!(s.team_blue.wood) >= archerwood) 
+												&& (!(s.team_blue.food) >= archerfood) then
+                          (s.team_blue.wood:= !(s.team_blue.wood) - archerwood;
+                           s.team_blue.food:= !(s.team_blue.food) - archerfood;
+                           s.team_blue.upgrades:= (p,true,k);
                              let newunitlist= List.fold_left
-                               (fun a (id,ty,h,pos) -> 
-                                  if ty = Archer then (id,EliteArcher,h,pos)::a 
-                                  else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
-                             s.team_blue.units:= newunitlist;
-                             Netgraphics.add_update (UpgradeUnit (Archer,Blue));
-                             Success)
+                             (fun a (id,ty,h,pos) -> 
+                             if ty = Archer then (id,EliteArcher,h,pos)::a 
+                             else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
+                           s.team_blue.units:= newunitlist;
+                           Netgraphics.add_update (UpgradeUnit (Archer,Blue));
+                           Success)
                          else Failed))
                   | Knight |EliteKnight ->
                      (if k then Failed
                       else 
-                         (if (!(s.team_blue.wood) >= knightwood) && (!(s.team_blue.food) >= knightfood) then
-                            (s.team_blue.wood:= !(s.team_blue.wood) - knightwood;
-                             s.team_blue.food:= !(s.team_blue.food) - knightfood;
-                             s.team_blue.upgrades:= (p,a,true);
-                             let newunitlist= List.fold_left
-                               (fun a (id,ty,h,pos) -> 
-                                  if ty = Knight then (id,EliteKnight,h,pos)::a 
-                                  else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
-                             s.team_blue.units:= newunitlist;
-                             Netgraphics.add_update (UpgradeUnit (Knight,Blue));
-                             Success)
-                         else Failed))
+                         (if (!(s.team_blue.wood) >= knightwood) 
+												&& (!(s.team_blue.food) >= knightfood) then
+                          (s.team_blue.wood:= !(s.team_blue.wood)-knightwood;
+                           s.team_blue.food:= !(s.team_blue.food) - knightfood;
+                           s.team_blue.upgrades:= (p,a,true);
+                           let newunitlist= List.fold_left
+                             (fun a (id,ty,h,pos) -> 
+                              if ty = Knight then (id,EliteKnight,h,pos)::a 
+                              else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
+                           s.team_blue.units:= newunitlist;
+                           Netgraphics.add_update (UpgradeUnit (Knight,Blue));
+                           Success)
+                       else Failed))
 										| _ -> Failed)
                else Failed)))	

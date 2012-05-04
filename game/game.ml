@@ -23,11 +23,14 @@ let rec randPos (c:color): float*float =
 	match c with
 		| Red -> let x = Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)
 		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
-						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+						 if (is_valid_pos (x,y)) 
+						&& (is_valid_tile (tile_of_pos (x,y))) then (x,y)
 						 else randPos c
-		| Blue -> let x = (Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)) +. cBOARD_WIDTH/.2.
+		| Blue -> let x = 
+			(Random.float (cBOARD_WIDTH/.2. -. cTILE_WIDTH*.2.)) +. cBOARD_WIDTH/.2.
 		         and y = Random.float (cBOARD_HEIGHT -. cTILE_HEIGHT*.2.) in
-						 if (is_valid_pos (x,y)) && (is_valid_tile (tile_of_pos (x,y))) then (x,y)
+						 if (is_valid_pos (x,y)) 
+						&& (is_valid_tile (tile_of_pos (x,y))) then (x,y)
 						 else randPos c
 
 let initUnitsAndBuildings g : unit =
@@ -97,20 +100,38 @@ let handleAction g act c : command =
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
 
     | QueueAttack (unit_id, attackable_object) ->
-     State.queueAttack s c (getUnitColor s unit_id) (getType unit_id s ) unit_id attackable_object
+     State.queueAttack s c (getUnitColor s unit_id) (getType unit_id s ) 
+			unit_id attackable_object
 
     | QueueBuild (unit_id, building_type) ->
-       State.queueBuild s c (getUnitColor s unit_id) (getType unit_id s ) unit_id building_type
+       State.queueBuild s c (getUnitColor s unit_id) (getType unit_id s ) 
+				unit_id building_type
 
     | QueueSpawn (building_id, unit_type) ->
-       State.queueSpawn s c (getBuildingColor s building_id) building_id unit_type
+       State.queueSpawn s c (getBuildingColor s building_id) 
+				building_id unit_type
 
     | ClearAttack id ->
-       clearAttack id !(s.attackq) c (getTeam id s)
-          (getType id s)
+      let color = getUnitColor s id in
+			(match color with
+				| Some c -> (
+					let q = Hashtbl.find !(s.attackq) id in
+					match q with
+						| AttackQueue(aq) -> (Queue.clear aq; Success)
+						| _ -> Failed
+					)
+				| _ -> Failed)
 
     | ClearMove id ->
-       clearMove id !(s.movq) c (getTeam id s)
+      let color = getUnitColor s id in
+			(match color with
+				| Some c -> (
+					let q = Hashtbl.find !(s.movq) id in
+					match q with
+						| MoveQueue(mq) -> (Queue.clear mq; Success)
+						| _ -> Failed
+					)
+				| _ -> Failed)
 
     | Upgrade upgrade_type -> 
 			State.upgrade s c upgrade_type
