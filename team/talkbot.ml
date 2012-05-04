@@ -38,7 +38,7 @@ let rec collect crazytuple=
    (uid,h,tcloc,m) ->
    print_int (uid); print_string(": ");print_int (h);print_string ("\n");
 
-   if h <= 0 then 
+   if h <= 0 then
     (print_int (uid); print_string(": ");print_endline ("Ran out of resources");
       let rq= getResourceQueue tcloc in
       if Queue.is_empty (!rq) then (print_endline ("No more resources");())
@@ -101,6 +101,7 @@ let bot c =
    while true do
    
    Thread.delay 1.0 
+   
 (*
     let talk_action = Talk("Talk: " ^ (string_of_int !count)) in
 		let audio_action = Talk(string_of_int !count) in
@@ -116,3 +117,12 @@ let bot c =
   done
 
 let () = start_bot bot
+
+(* Proxy rax rush 
+3 villagers to wood - 30 wood
+1 villager build proxy rax
+Other two, wood and food
+1 pikeman, kill villagers
+More villagers
+More pikemen
+*)
