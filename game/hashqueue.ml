@@ -4,7 +4,7 @@ open Util
 
 type actqueue=
    MoveQueue of (unit_id * vector) Queue.t |
-   GatherQueue of unit_id Queue.t |
+   GatherQueue of resource_data Queue.t |
    AttackQueue of (unit_id * attackable_object) Queue.t |
    BuildQueue of (unit_id * building_type) Queue.t |
    SpawnQueue of (building_id * unit_type) Queue.t 
@@ -89,25 +89,6 @@ let queueAttack atttup q c copt tyopt: result=
        else Failed (* unit belongs to other team *))
    | None -> Failed (* uid does not exist *)
 
-let queueBuild buildtup q c copt tyopt: result=
-   (* Check if uid is of same color*)
-   match copt with
-   | Some(cresult) -> 
-      (if c = cresult then 
-         (match tyopt with
-          | Some(tyresult) -> 
-             if tyresult = Villager then (
-                let oldq= Hashtbl.find q (fst buildtup) in
-                match oldq with
-                BuildQueue(qq) ->(
-                Queue.add buildtup qq;
-                Hashtbl.replace q (fst buildtup) (BuildQueue(qq));
-                Success)
-                | _ -> Success)
-             else Success
-          | None -> Failed (* uid does not exist *) )
-       else Failed (* unit belongs to other team *))
-   | None -> Failed (* uid does not exist *)
 
 let queueSpawn spawntup q c copt isbuild: result=
    (* Check if uid is of same color*)
