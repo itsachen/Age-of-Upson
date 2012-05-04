@@ -92,13 +92,13 @@ let bot c =
    let res1= send_action mov1 0 in
    let res2= send_action mov2 0 in
    let res3= send_action mov3 0 in
-
+(*
    let cm = Mutex.create () in
    let _ = Thread.create collect (u1,h1,tcloc,cm) in
    let _ = Thread.create collect (u2,h2,tcloc,cm) in
    let _ = Thread.create collect (u3,h3,tcloc,cm) in
-
-   Thread.delay 15.0;
+*)
+   Thread.delay 5.0;
 
    let action= QueueSpawn (towncenterid,Villager) in
    let res= send_action action 0 in
@@ -109,14 +109,79 @@ let bot c =
    TeamData (score,udl,bdl,age,food,wood,upgrades) ->
 
    let randid= get_random_id udl in
+
+   let (x,y)= !tcloc in
+   let action= QueueMove(randid,(position_of_tile((x,y+3)))) in
+   let _ = send_action action 0 in
+
+   Thread.delay 5.0;
+
+   
    let action= QueueBuild (randid, Barracks) in
-   let 
+   let _ = send_action action 0 in
+
+   Thread.delay 5.0;
+
+   let action= TeamStatus c in
+   let foo = get_status action in
+   match foo with
+   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+
+   let blist= List.filter (fun (id,ty,h,tl) -> ty = Barracks) bdl in
+   let (bid,_,_,_) = List.hd blist in
+   let action= QueueSpawn (bid,Pikeman) in
+   let res= send_action action 0 in
+
+   Thread.delay 3.0;
+
+   let action= Upgrade(AgeUpgrade) in
+   let res= send_action action 0 in
+   
+   Thread.delay 3.0;
+
+   let action= QueueSpawn (bid,Knight) in
+   let res= send_action action 0 in
+
+   Thread.delay 2.0;
+
+   let action= QueueSpawn (bid,Archer) in
+   let res= send_action action 0 in
+
+   let action= TeamStatus c in
+   let foo = get_status action in
+   match foo with
+   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+
+   let _= List.fold_left
+   (fun a (id,_,_,_) ->
+   send_action (QueueMove 
+   (id,position_of_tile(((Random.int 21),(Random.int 21))))) 0) Success udl in
+
+   Thread.delay 1.0;
+
+   let action= Upgrade(UnitUpgrade(Archer)) in
+   let res= send_action action 0 in
+
+   Thread.delay 1.0;
+
+   let action= Upgrade(UnitUpgrade(Knight)) in
+   let res= send_action action 0 in
+
+   Thread.delay 1.0;
+
+   let action= Upgrade(UnitUpgrade(Pikeman)) in
+   let res= send_action action 0 in
+
+   let _ = match res with
+     | Success -> print_endline("WOOOOO")
+     | Failed -> print_endline("No.") in
 
    while true do
    
-   Thread.delay 1.0 
+   Thread.delay 1.0;
 
-   
+
+
 (*
     let talk_action = Talk("Talk: " ^ (string_of_int !count)) in
 		let audio_action = Talk(string_of_int !count) in
