@@ -94,3 +94,11 @@ val getTeamScore: state -> color -> score
 val queueCollect: state -> unit_id -> color -> color option -> unit_type option -> result
 
 val queueMove: state -> color -> color option -> unit_id -> vector -> result
+
+val queueBuild: state -> color -> color option -> unit_type option -> unit_id -> building_type -> result
+
+val queueAttack:state -> color -> color option -> unit_type option -> unit_id -> attackable_object -> result
+
+val queueSpawn: state -> color -> color option -> building_id -> unit_type -> result
+
+val upgrade: state -> color -> upgrade_type -> result

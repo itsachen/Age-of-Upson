@@ -59,6 +59,7 @@ let initUnitsAndBuildings g : unit =
 			Netgraphics.add_update (AddUnit (id,t,p,h,Red));
 			Hashtbl.add !(s.movq) id (MoveQueue(Queue.create ()));
 			Hashtbl.add !(s.gatherq) id (GatherQueue(Queue.create ()));
+			Hashtbl.add !(s.buildq) id (BuildQueue(Queue.create ()));
 			Hashtbl.add !(s.cdtable) id 0.; () ) ru;
 	let (_,bu,_,_,_,_,_) = getTeamStatus s Blue in
   List.iter
@@ -66,6 +67,7 @@ let initUnitsAndBuildings g : unit =
 			Netgraphics.add_update (AddUnit (id,t,p,h,Blue));
 			Hashtbl.add !(s.movq) id (MoveQueue(Queue.create ()));
 			Hashtbl.add !(s.gatherq) id (GatherQueue(Queue.create ()));
+			Hashtbl.add !(s.buildq) id (BuildQueue(Queue.create ()));
 			Hashtbl.add !(s.cdtable) id 0.; () ) bu;
 	Mutex.unlock m
 	
@@ -95,16 +97,13 @@ let handleAction g act c : command =
     | Talk str -> Netgraphics.add_update(DisplayString(c, str)); Success
 
     | QueueAttack (unit_id, attackable_object) ->
-     queueAttack (unit_id, attackable_object) !(s.attackq) c (getTeam unit_id s)
-          (getType unit_id s)
+     State.queueAttack s c (getUnitColor s unit_id) (getType unit_id s ) unit_id attackable_object
 
     | QueueBuild (unit_id, building_type) ->
-       queueBuild (unit_id, building_type) !(s.buildq) c (getTeam unit_id s)
-          (getType unit_id s)
+       State.queueBuild s c (getUnitColor s unit_id) (getType unit_id s ) unit_id building_type
 
     | QueueSpawn (building_id, unit_type) ->
-       queueSpawn (building_id, unit_type) !(s.spawnq) c 
-       (getTeam building_id s) (getIsBuilding building_id s)
+       State.queueSpawn s c (getBuildingColor s building_id) building_id unit_type
 
     | ClearAttack id ->
        clearAttack id !(s.attackq) c (getTeam id s)
@@ -114,133 +113,7 @@ let handleAction g act c : command =
        clearMove id !(s.movq) c (getTeam id s)
 
     | Upgrade upgrade_type -> 
-       let (agefood,agewood)= cUPGRADE_AGE_COST in
-       let (pikefood,pikewood)= cUPGRADE_PIKEMAN_COST in
-       let (knightfood,knightwood) = cUPGRADE_KNIGHT_COST in
-       let (archerfood,archerwood) = cUPGRADE_ARCHER_COST in
-       match upgrade_type with
-       | AgeUpgrade -> 
-          (if c = Red then 
-             (if (!(s.team_red.age)) = DarkAge then 
-                (if (!(s.team_red.wood) >= agewood) && (!(s.team_red.food) >= agefood) then 
-                   (s.team_red.wood:= !(s.team_red.wood) - agewood;
-                    s.team_red.food:= !(s.team_red.food) - agefood;
-                    s.team_red.age:= ImperialAge;
-                    Netgraphics.add_update (UpgradeAge Red);
-                    Success)
-                else Failed) 
-             else Failed) 
-           else (
-              (if (!(s.team_blue.age)) = DarkAge then 
-                  (if (!(s.team_blue.wood) >= agewood) && (!(s.team_blue.food) >= agefood) then 
-                     (s.team_blue.wood:= !(s.team_blue.wood) - agewood;
-                      s.team_blue.food:= !(s.team_blue.food) - agefood;
-                      s.team_blue.age:= ImperialAge;
-                      Netgraphics.add_update (UpgradeAge Blue);
-                      Success)
-                  else Failed) 
-               else Failed)))
-       | UnitUpgrade(utype) ->
-          (if c = Red then 
-             (if !(s.team_red.age) = ImperialAge then
-                let (p,a,k)= !(s.team_red.upgrades) in
-                (match utype with
-                 | ElitePikeman -> 
-                    (if p then Failed 
-                     else 
-                        (if (!(s.team_red.wood) >= pikewood) && (!(s.team_red.food) >= pikefood) then
-                           (s.team_red.wood:= !(s.team_red.wood) - pikewood;
-                            s.team_red.food:= !(s.team_red.food) - pikefood;
-                            s.team_red.upgrades:= (true,a,k);
-                            let newunitlist= List.fold_left
-                              (fun a (id,ty,h,pos) -> 
-                                 if ty = Pikeman then (id,ElitePikeman,h,pos)::a 
-                                 else (id,ty,h,pos)::a) [] !(s.team_red.units) in
-                            s.team_red.units:= newunitlist;
-                            Netgraphics.add_update (UpgradeUnit (Pikeman,Red));
-                            Success)
-                        else Failed))
-                 | EliteArcher ->
-                    (if a then Failed 
-                     else 
-                        (if (!(s.team_red.wood) >= archerwood) && (!(s.team_red.food) >= archerfood) then
-                           (s.team_red.wood:= !(s.team_red.wood) - archerwood;
-                            s.team_red.food:= !(s.team_red.food) - archerfood;
-                            s.team_red.upgrades:= (p,true,k);
-                            let newunitlist= List.fold_left
-                              (fun a (id,ty,h,pos) -> 
-                                 if ty = Archer then (id,EliteArcher,h,pos)::a 
-                                 else (id,ty,h,pos)::a) [] !(s.team_red.units) in
-                            s.team_red.units:= newunitlist;
-                            Netgraphics.add_update (UpgradeUnit (Archer,Red));
-                            Success)
-                        else Failed))
-                 | EliteKnight ->
-                    (if k then Failed
-                     else 
-                        (if (!(s.team_red.wood) >= knightwood) && (!(s.team_red.food) >= knightfood) then
-                           (s.team_red.wood:= !(s.team_red.wood) - knightwood;
-                            s.team_red.food:= !(s.team_red.food) - knightfood;
-                            s.team_red.upgrades:= (p,a,true);
-                            let newunitlist= List.fold_left 
-                              (fun a (id,ty,h,pos) -> 
-                                 if ty = Knight then (id,EliteKnight,h,pos)::a 
-                                 else (id,ty,h,pos)::a) [] !(s.team_red.units) in
-                            s.team_red.units:= newunitlist;
-                            Netgraphics.add_update (UpgradeUnit (Knight,Red));
-                            Success)
-                        else Failed)))
-              else Failed) 
-          else (
-             (if !(s.team_blue.age) = ImperialAge then
-                let (p,a,k)= !(s.team_blue.upgrades) in
-                 (match utype with
-                  | ElitePikeman -> 
-                     (if p then Failed 
-                      else 
-                         (if (!(s.team_blue.wood) >= pikewood) && (!(s.team_blue.food) >= pikefood) then
-                            (s.team_blue.wood:= !(s.team_blue.wood) - pikewood;
-                             s.team_blue.food:= !(s.team_blue.food) - pikefood;
-                             s.team_blue.upgrades:= (true,a,k);
-                             let newunitlist= List.fold_left
-                               (fun a (id,ty,h,pos) -> 
-                                  if ty = Pikeman then (id,ElitePikeman,h,pos)::a 
-                                  else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
-                             s.team_blue.units:= newunitlist;
-                             Netgraphics.add_update (UpgradeUnit (Pikeman,Blue));
-                             Success)
-                         else Failed))
-                  | EliteArcher ->
-                     (if a then Failed 
-                      else 
-                         (if (!(s.team_blue.wood) >= archerwood) && (!(s.team_blue.food) >= archerfood) then
-                            (s.team_blue.wood:= !(s.team_blue.wood) - archerwood;
-                             s.team_blue.food:= !(s.team_blue.food) - archerfood;
-                             s.team_blue.upgrades:= (p,true,k);
-                             let newunitlist= List.fold_left
-                               (fun a (id,ty,h,pos) -> 
-                                  if ty = Archer then (id,EliteArcher,h,pos)::a 
-                                  else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
-                             s.team_blue.units:= newunitlist;
-                             Netgraphics.add_update (UpgradeUnit (Archer,Blue));
-                             Success)
-                         else Failed))
-                  | EliteKnight ->
-                     (if k then Failed
-                      else 
-                         (if (!(s.team_blue.wood) >= knightwood) && (!(s.team_blue.food) >= knightfood) then
-                            (s.team_blue.wood:= !(s.team_blue.wood) - knightwood;
-                             s.team_blue.food:= !(s.team_blue.food) - knightfood;
-                             s.team_blue.upgrades:= (p,a,true);
-                             let newunitlist= List.fold_left
-                               (fun a (id,ty,h,pos) -> 
-                                  if ty = Knight then (id,EliteKnight,h,pos)::a 
-                                  else (id,ty,h,pos)::a) [] !(s.team_blue.units) in
-                             s.team_blue.units:= newunitlist;
-                             Netgraphics.add_update (UpgradeUnit (Knight,Blue));
-                             Success)
-                         else Failed)))
-               else Failed)))
+			State.upgrade s c upgrade_type
 		in
   Mutex.unlock m;
   Result res
@@ -385,18 +258,21 @@ let handleBuildingCreation s currTime :unit =
 					let (uid,_) = Queue.peek bq in
 					let (_,_,_,u_pos) = getUnitStatus s uid in
 					let cd = Hashtbl.find (getCDTable s) uid in
-					if cd <= currTime then let (u,b_ty)=Queue.pop bq in
-					let color = getUnitColor s u in
-					match color with 
-						| Some c -> (
-							let b_id = next_available_id ()
-							and b_h = get_building_type_health b_ty
-							and b_tile = tile_of_pos u_pos in
-							addTeamBuilding s c 
-							(b_id, b_ty,b_h,b_tile);
-							Netgraphics.add_update (AddBuilding (b_id,b_ty,b_tile,b_h,c))
-							)
-						| None -> () )
+					if cd <= currTime then 
+						let (u,b_ty)=Queue.pop bq in
+						let color = getUnitColor s u in
+						match color with 
+							| Some c -> (
+								let b_id = next_available_id ()
+								and b_h = get_building_type_health b_ty
+								and b_tile = tile_of_pos u_pos in
+								addTeamBuilding s c 
+								(b_id, b_ty,b_h,b_tile);
+								Hashtbl.add !(s.spawnq) b_id (SpawnQueue(Queue.create ()));
+								Netgraphics.add_update (AddBuilding (b_id,b_ty,b_tile,b_h,c))
+								)
+							| None -> () 
+						else () )
 					  )
 			| _ -> ()
 			) buildqueue
