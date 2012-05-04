@@ -98,9 +98,24 @@ let bot c =
    let _ = Thread.create collect (u2,h2,tcloc,cm) in
    let _ = Thread.create collect (u3,h3,tcloc,cm) in
 
+   Thread.delay 15.0;
+
+   let action= QueueSpawn (towncenterid,Villager) in
+   let res= send_action action 0 in
+
+   let action= TeamStatus c in
+   let foo = get_status action in
+   match foo with
+   TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+
+   let randid= get_random_id udl in
+   let action= QueueBuild (randid, Barracks) in
+   let 
+
    while true do
    
    Thread.delay 1.0 
+
    
 (*
     let talk_action = Talk("Talk: " ^ (string_of_int !count)) in
