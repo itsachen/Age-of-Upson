@@ -460,12 +460,12 @@ let queueAttack (s:state) (c:color) (copt: color option)
 							| AttackQueue(aq) -> (
 								match tar with
 									| Building(b) -> (
-										if (getBuildingColor s b) = copt 
+										if (getBuildingColor s b) <> copt 
 										then (Queue.push (uid,tar) aq; Success)
 										else Failed
 										)
 									| Unit(u) -> (
-										if (getUnitColor s u) = copt
+										if (getUnitColor s u) <> copt
 										then (Queue.push (uid,tar) aq; Success)
 										else Failed
 										) )
