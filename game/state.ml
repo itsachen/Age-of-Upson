@@ -15,9 +15,9 @@ type state= {team_red: team; team_blue:team;
 	
 let createState (u: unit): state = 
 	let red = {color= Red;score=ref 0;units=ref [];buildings=ref [];
-      age=ref DarkAge;food=ref 1000;wood=ref 1000;upgrades=ref (false,false,false)}
+      age=ref DarkAge;food=ref 0;wood=ref 0;upgrades=ref (false,false,false)}
 	and blue = {color= Blue;score=ref 0;units=ref [];buildings= ref [];
-      age=ref DarkAge;food=ref 1000;wood=ref 1000;upgrades=ref (false,false,false)} 
+      age=ref DarkAge;food=ref 0;wood=ref 0;upgrades=ref (false,false,false)} 
 	and mq = createHashq 100 
 	and gq = createHashq 100 
 	and aq = createHashq 100 
