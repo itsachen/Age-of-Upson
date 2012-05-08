@@ -66,6 +66,7 @@ let count = ref 0
 (*THIS IS THE ONLY METHOD YOU NEED TO COMPLETE FOR THE BOT*)
 (*Make sure to use helper funcitons*)
 let bot c =
+(*
    (* Initial position of TC *)
    let tcloc= ref (0,0) in
    let action= TeamStatus c in
@@ -196,19 +197,19 @@ let bot c =
    (id,position_of_tile(enemypos))) 0) Success udl in
 
    Thread.delay 5.0;
-
+     *)
    while true do
-
+(*
    let _= List.fold_left
    (fun a (id,_,_,_) ->
    send_action (QueueAttack 
-   (id,Building(enemyid))) 0) Success udl in
-
+   (id,Building(enemyid))) 0) Success udl in *
+*)
    Thread.delay 1.0;
 
 
 
-(*
+
     let talk_action = Talk("Talk: " ^ (string_of_int !count)) in
 		let audio_action = Talk(string_of_int !count) in
 		count := (mod) (!count + 1) 40;
@@ -219,7 +220,7 @@ let bot c =
       | Success -> print_endline ("Talk Success!")
       | Failed  -> print_endline ("Talk Failed") in
     Thread.delay 1.0
-*)
+
   done
 
 let () = start_bot bot
