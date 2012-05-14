@@ -46,6 +46,9 @@ let getResourceQueue tcloc=
       else 0) resourcel in
    ref (queueify sortedresourcel)
 
+let otherColor c=
+   if c = Red then Blue else Red
+
 (* IS FREE TILE *)
 let ift (resources:resource_data list) (g:game_data) (x,y):bool =
 	if not (is_valid_tile(x,y) && is_valid_tile(x+1,y) 
@@ -96,20 +99,106 @@ let rec collect crazytuple=
          Thread.delay 1.0;
 collect (uid,h,tcloc)) (* Walking *)
 
+let createVillagerThread c=
+   while true do
+      let action= TeamStatus c in
+      let foo = get_status action in
+      match foo with
+      TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+      let ourl= List.filter (fun (uid,ty,h,p) -> ty = Villager) udl in
+
+      let action= TeamStatus (otherColor c) in
+      let foo = get_status action in
+      match foo with
+      TeamData (_,udl,_,_,_,_,_) -> 
+      let enemyl= List.filter (fun (uid,ty,h,p) -> ty = Villager) udl in
+
+      if ((List.length ourl) <= (List.length enemyl)) then 
+      (let tc= List.hd (List.filter (fun (bid,ty,h,t) -> ty = TownCenter) bdl)
+       in match tc with (id,_,_,_) -> 
+       let action= QueueSpawn(id,Villager) in
+       let _ = send_action action 0 in
+       Thread.delay 1.0;())
+      else ()
+   done
+
+let createVillagerThread c=
+   while true do
+      let action= TeamStatus c in
+      let foo = get_status action in
+      match foo with
+      TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+      let ourl= List.filter (fun (uid,ty,h,p) -> ty = Villager) udl in
+
+      let action= TeamStatus (otherColor c) in
+      let foo = get_status action in
+      match foo with
+      TeamData (_,udl,_,_,_,_,_) -> 
+      let enemyl= List.filter (fun (uid,ty,h,p) -> ty = Villager) udl in
+
+      if ((List.length ourl) <= (List.length enemyl)) then 
+      (let tc= List.hd (List.filter (fun (bid,ty,h,t) -> ty = TownCenter) bdl)
+       in match tc with (id,_,_,_) -> 
+       let action= QueueSpawn(id,Villager) in
+       let _ = send_action action 0 in
+       Thread.delay 1.0)
+      else ()
+   done
+
+let createPikemanThread c=
+   while true do
+      print_string("creating pikemen");
+      let action= TeamStatus c in
+      let foo = get_status action in
+      match foo with
+      TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+
+      let tc= List.hd (List.filter (fun (bid,ty,h,t) -> ty = Barracks) bdl)
+      in match tc with (id,_,_,_) -> 
+      let action= QueueSpawn(id,Pikeman) in
+      let _ = send_action action 0 in
+      Thread.delay 4.0
+   done
+
+let movePikemanThread c=
+   while true do(
+      Thread.delay 1.0;
+      print_string("moving pikemen");
+      let action= TeamStatus c in
+      let foo = get_status action in
+      match foo with
+      TeamData (score,udl,bdl,age,food,wood,upgrades) ->
+      let pikel= List.filter (fun (uid,ty,h,p) -> ty = Pikeman) udl in
+
+      let action= TeamStatus (otherColor c) in
+      let foo = get_status action in
+      match foo with
+      TeamData (_,udl,_,_,_,_,_) -> 
+      let enemyl= List.filter (fun (uid,ty,h,p) -> ty = Villager) udl in
+      let enemyq= ref (queueify pikel) in
+      List.fold_left 
+         (fun a (uid,ty,h,pos) -> 
+          if (Queue.is_empty !enemyq) then ()
+          else let (enemyid,_,_,enemypos)= Queue.pop !enemyq in 
+          let action= QueueMove(uid,enemypos) in
+          let _= send_action action 0 in
+          Thread.delay 3.0;
+          let action= QueueAttack(uid,Unit(enemyid)) in
+          let _= send_action action 0 in ()) () pikel)
+   done
+
 let getWood c=
    let action= TeamStatus c in
    let foo = get_status action in
    match foo with
-   TeamData (score,udl,bdl,age,food,wood,upgrades) -> print_int(wood);wood
+   TeamData (score,udl,bdl,age,food,wood,upgrades) -> 
+   print_int(wood);print_string("\n");wood
 
 let getFood c=
    let action= TeamStatus c in
    let foo = get_status action in
    match foo with
    TeamData (score,udl,bdl,age,food,wood,upgrades) -> food
-
-let otherColor c=
-   if c = Red then Blue else Red
 
 let count = ref 0 
 
@@ -168,8 +257,7 @@ let bot c =
    let _ = Thread.create collect (u3,h3,tcloc) in
 
    (* Collect wood until enough for barracks *)
-   while (((getWood c) <= snd cBARRACKS_COST) && 
-      ((getFood c) <= fst cBARRACKS_COST)) do
+   while (((getWood c) <= snd cBARRACKS_COST)) do
      send_action (QueueCollect u1) 0; ()
    done;
 
@@ -183,11 +271,12 @@ let bot c =
    match foo with
    GameData (gd) ->
 
+   (* BARRACK PLACEMENT NEEDS CHANGING *)
    let ll= [(6,6);(6,7);(6,8);(6,9);(6,10);(6,11);(7,6);(7,7);(7,8);(7,9);
    (7,10);(7,11);(8,6);(8,7);(8,8);(8,9);(8,10);(8,11);(13,6);(3,6)] in
    let res= List.filter (fun a -> ift rdl gd a) ll in
    (* let a= QueueMove(u1,(position_of_tile(List.hd res))) in *)
-   let a= QueueMove(u1,(position_of_tile((1,1)))) in
+   let a= QueueMove(u1,(position_of_tile((List.hd res)))) in
    let res= send_action a 0 in
 
    Thread.delay 5.0;
@@ -195,9 +284,28 @@ let bot c =
    let a= QueueBuild(u1,Barracks) in
    let res = send_action a 0 in
 
-   let _ = match res with
-   Success -> print_endline ("BUILT")
-   | Failed -> print_endline ("FAILED YO") in
+   Thread.delay 1.0;
+
+   let temp= getResourceList tcloc in
+   let temp2= List.filter (fun (tl,rt,h) -> rt = Food) temp in
+   let foodq= ref (queueify temp2) in
+   let (t1,rty1,h1) = Queue.pop !foodq in
+   let mov1= QueueMove(u1,(position_of_tile(t1))) in
+   let _ = send_action mov1 0 in
+   let _ = Thread.create collect (u1,h1,tcloc) in
+
+   (* Villager creation thread begin *)
+   let _= Thread.create createVillagerThread c in
+   (* If we have more villagers than other team, we can stop making villagers *)
+
+   (* Pikeman creation thread begin *)
+   let _= Thread.create createPikemanThread c in
+   (* Always make pikeman *)
+   Thread.delay 2.0;
+   (* Pikeman delegation thread begin *)
+   let _ =Thread.create movePikemanThread c in
+   (* Endless loop of moving to nearest pikeman/villager and attacking *)
+   (* If we are in the lead then attack other town center *)
 
    while true do
 
